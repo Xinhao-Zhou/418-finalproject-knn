@@ -1,0 +1,13 @@
+# depslib dependency file v1.0
+1587500138 source:e:\codeblocks workspace\knn\src\datapoint.cpp
+	"DataPoint.h"
+
+1587500178 e:\codeblocks workspace\knn\include\datapoint.h
+
+1587514621 source:e:\codeblocks workspace\knn\main.cpp
+	<iostream>
+	<vector>
+	<queue>
+	<map>
+	<limits>
+
