@@ -1,6 +1,4 @@
-#include "..\knn_header.h"
-#include <string.h>
-#include <cmath>
+#include "knn_header.h"
 
 double distanceFunc(DataPoint datapoint1, DataPoint datapoint2, int func){
     double distance = 0.0f;
@@ -60,7 +58,7 @@ vector<DataPoint> _parseFile(char *FILE){
     }
 
     vector<map<string, double> > discreteValuesDict(numberOfAttr);
-
+    int instanceIdx = 0;
     while(!in.eof()){
         in.getline(buf, 256);
 
@@ -70,8 +68,9 @@ vector<DataPoint> _parseFile(char *FILE){
 
 
         DataPoint newPoint;
-        newPoint.id = -1;
+        int newlineFlag = 0;
         while(temp != NULL){
+            newlineFlag = 1;
 //            if(idx == 0){
 //                if(0 == sscanf(temp, "%d", &(newPoint.id))){
 //                    // Not an integer
@@ -101,6 +100,8 @@ vector<DataPoint> _parseFile(char *FILE){
                     newPoint.attributes.push_back(attr);
                 }
             }else{
+                instanceIdx++;
+                newPoint.id = instanceIdx;
                 // Not an integer
                 if((discreteValuesDict.at(idx).find(temp)) == discreteValuesDict.at(idx).end()){
                     //Not exists in the map
@@ -116,7 +117,7 @@ vector<DataPoint> _parseFile(char *FILE){
             temp = strtok(NULL, deli);
             idx++;
         }
-        if(newPoint.id != -1) {
+        if(newlineFlag) {
             dataList.push_back(newPoint);
         }
     }

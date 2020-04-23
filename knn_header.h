@@ -3,9 +3,11 @@
 #include <queue>
 #include <map>
 #include <limits>
+#include <fstream>
+#include <string.h>
+#include <cmath>
 
 using namespace std;
-
 
 #ifndef KNN_HEADER_H_INCLUDED
 #define KNN_HEADER_H_INCLUDED
@@ -13,8 +15,8 @@ using namespace std;
 class DataPoint
 {
 public:
-    DataPoint();
-    virtual ~DataPoint();
+    DataPoint(){};
+    //virtual ~DataPoint();
 
     int id;
     vector<double> attributes;
@@ -27,9 +29,8 @@ private:
 struct Distance{
     DataPoint src_datapoint;
     DataPoint dest_datapoint;
-    int distance;
+    double distance;
 };
-
 
 double distanceFunc(DataPoint datapoint1, DataPoint datapoint2);
 vector<DataPoint> parseFile(int argc, char *argv[]);
@@ -38,7 +39,7 @@ bool operator <(Distance distance_a, Distance distance_b);
 priority_queue<Distance> getPriorityQueue(DataPoint target_point, vector<DataPoint> datapoints, int func);
 vector<Distance> findNeighbors(DataPoint datapoint, priority_queue<Distance> train_datapoints, int k);
 DataPoint assignLabel(DataPoint target_datapoint, vector<Distance> distances);
-vector<DataPoint> predictLables(vector<DataPoint> data_test, vector<DataPoint> data_train, int k);
+vector<DataPoint> predictLables(vector<DataPoint> data_test, vector<DataPoint> data_train, int k, int func);
 
 
 #endif // KNN_HEADER_H_INCLUDED
