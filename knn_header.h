@@ -31,11 +31,11 @@ struct Distance{
 };
 
 
-int distanceFunc(DataPoint datapoint1, DataPoint datapoint2);
+double distanceFunc(DataPoint datapoint1, DataPoint datapoint2);
 vector<DataPoint> parseFile(int argc, char *argv[]);
 vector<DataPoint> parseFile_test(int argc, char *argv[]);
 bool operator <(Distance distance_a, Distance distance_b);
-priority_queue<Distance> getPriorityQueue(DataPoint target_point, vector<DataPoint> datapoints);
+priority_queue<Distance> getPriorityQueue(DataPoint target_point, vector<DataPoint> datapoints, int func);
 vector<Distance> findNeighbors(DataPoint datapoint, priority_queue<Distance> train_datapoints, int k);
 DataPoint assignLabel(DataPoint target_datapoint, vector<Distance> distances);
 vector<DataPoint> predictLables(vector<DataPoint> data_test, vector<DataPoint> data_train, int k);

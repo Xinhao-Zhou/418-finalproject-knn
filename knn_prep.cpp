@@ -1,8 +1,40 @@
 #include "..\knn_header.h"
+#include <string.h>
+#include <cmath>
 
-int distanceFunc(DataPoint datapoint1, DataPoint datapoint2){
-    int N = rand() % 10+1;
-    return N;
+double distanceFunc(DataPoint datapoint1, DataPoint datapoint2, int func){
+    double distance = 0.0f;
+    int size = datapoint1.attributes.size();
+    switch(func){
+        case 0:{//Euclidean
+            for(int i = 0;i < size;i++){
+                double diff = datapoint1.attributes[i] - datapoint2.attributes[i];
+                distance += pow(diff, 2);
+            }
+            distance = sqrt(distance);
+            break;
+        }
+        case 1:{//Manhattan
+            for(int i = 0;i < size;i++){
+                double diff = fabs(datapoint1.attributes[i] - datapoint2.attributes[i]);
+                distance += diff;
+            }
+            break;
+        }
+        case 2:{//Minkowski
+            //assume p = 3
+            int power = 3;
+            for(int i = 0;i < size;i++){
+                double diff = fabs(datapoint1.attributes[i] - datapoint2.attributes[i]);
+                diff = pow(diff, power);
+                distance += diff;
+            }
+            distance = pow(distance, 1 / power);
+            break;
+        }
+    }
+
+    return distance;
 }
 
 vector<DataPoint> _parseFile(char *FILE){
@@ -94,8 +126,9 @@ vector<DataPoint> _parseFile(char *FILE){
     return dataList;
 }
 
+//shell> myprogram train_data_set test_data_set
 vector<DataPoint> parseFile(int argc, char *argv[]){
-    if(argc < 2){
+    if(argc < 3){
         cout << "Error" <<endl;
         exit(-1);
     }
@@ -105,13 +138,8 @@ vector<DataPoint> parseFile(int argc, char *argv[]){
 }
 
 vector<DataPoint> parseFile_test(int argc, char *argv[]){
-    vector<DataPoint> pq;
-    for(int i=0;i<5;i++){
-        DataPoint dp;
-        dp.id = i+10;
-        dp.label = 'A' + rand()%24;
-        pq.push_back(dp);
-    }
+    vector<DataPoint> pq = _parseFile(argv[2]);
+
     return pq;
 }
 
@@ -132,13 +160,13 @@ bool operator <(Distance distance_a, Distance distance_b)
     }
 }
 
-priority_queue<Distance> getPriorityQueue(DataPoint target_point, vector<DataPoint> datapoints){
+priority_queue<Distance> getPriorityQueue(DataPoint target_point, vector<DataPoint> datapoints, int func){
     priority_queue<Distance> pq;
     for(DataPoint dp:datapoints){
         Distance ds;
         ds.src_datapoint = target_point;
         ds.dest_datapoint = dp;
-        ds.distance = distanceFunc(target_point, dp);
+        ds.distance = distanceFunc(target_point, dp, func);
         pq.push(ds);
     }
     return pq;

@@ -2,12 +2,29 @@
 #include "..\knn_header.h"
 #include "..\knn_prep.cpp"
 
+int parseFunc(char *argv[]){
+    if(strcmp(argv[3], "euclidean") == 0){
+        funcNumber = 0;
+    }else if(strcmp(argv[3], "manhattan") == 0){
+        funcNumber = 1;
+    }else if(strcmp(argv[3], "minkowski") == 0){
+        funcNumber = 2;
+    }else{
+        funcNumber = 0;
+    }
+    return funcNumber;
+}
 
-int main()
+int main(int argc, char *argv)
 {
     cout << "Hello world!" << endl;
 
     printf("train data\n");
+
+    if(argc < 4){
+        printf("We need [train data set] [test data set] [distance function]\n");
+        return -1;
+    }
 
     vector<DataPoint> data_train = parseFile();
 
@@ -23,7 +40,9 @@ int main()
         printf("id: %d \n", dp.id);
     }
 
-    vector<DataPoint> results = predictLables(data_test, data_train, 2);
+    int func = parseFunc(argv);
+
+    vector<DataPoint> results = predictLables(data_test, data_train, 2, func);
 
     printf("\npredict results\n");
     for(DataPoint dp : results){
@@ -83,9 +102,9 @@ DataPoint assignLabel(DataPoint target_datapoint, vector<Distance> distances){
 }
 
 
-vector<DataPoint> predictLables(vector<DataPoint> data_test, vector<DataPoint> data_train, int k){
+vector<DataPoint> predictLables(vector<DataPoint> data_test, vector<DataPoint> data_train, int k, int func){
     for(DataPoint test_dp : data_test){
-        priority_queue<Distance> pq = getPriorityQueue(test_dp, data_train);
+        priority_queue<Distance> pq = getPriorityQueue(test_dp, data_train, func);
 
         vector<Distance> test;
         while(!pq.empty()){
