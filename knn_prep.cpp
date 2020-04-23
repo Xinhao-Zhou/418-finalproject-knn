@@ -99,7 +99,7 @@ vector<DataPoint> parseFile(int argc, char *argv[]){
         cout << "Error" <<endl;
         exit(-1);
     }
-    vector<DataPoint> pq = _parseFile(argc, argv);
+    vector<DataPoint> pq = _parseFile(argv[1]);
 
     return pq;
 }
