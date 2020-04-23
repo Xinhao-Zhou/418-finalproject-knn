@@ -2,7 +2,7 @@
 
 DataPoint::DataPoint()
 {
-    //ctor
+    vector<float> attributes;//ctor
 }
 
 DataPoint::~DataPoint()

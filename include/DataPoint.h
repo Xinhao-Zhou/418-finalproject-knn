@@ -8,6 +8,9 @@ class DataPoint
         DataPoint();
         virtual ~DataPoint();
 
+    int id;
+    vector<double> attributes;
+    int label;
     protected:
 
     private:

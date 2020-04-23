@@ -10,9 +10,18 @@ using namespace std;
 #ifndef KNN_HEADER_H_INCLUDED
 #define KNN_HEADER_H_INCLUDED
 
-struct DataPoint{
+class DataPoint
+{
+public:
+    DataPoint();
+    virtual ~DataPoint();
+
     int id;
-    char label;
+    vector<double> attributes;
+    int label;
+protected:
+
+private:
 };
 
 struct Distance{
@@ -23,8 +32,8 @@ struct Distance{
 
 
 int distanceFunc(DataPoint datapoint1, DataPoint datapoint2);
-vector<DataPoint> parseFile();
-vector<DataPoint> parseFile_test();
+vector<DataPoint> parseFile(int argc, char *argv[]);
+vector<DataPoint> parseFile_test(int argc, char *argv[]);
 bool operator <(Distance distance_a, Distance distance_b);
 priority_queue<Distance> getPriorityQueue(DataPoint target_point, vector<DataPoint> datapoints);
 vector<Distance> findNeighbors(DataPoint datapoint, priority_queue<Distance> train_datapoints, int k);
