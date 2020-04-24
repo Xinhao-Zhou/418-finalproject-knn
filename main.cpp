@@ -52,14 +52,15 @@ int main(int argc, char *argv[])
     int correctPrediction = 0;
     double accuracy = 0;
 
-    for(int i = 0;i < results.length;i++){
+    int results_size = sizeof(results)/sizeof(DataPoint);
+    for(int i = 0;i < results_size;i++){
             if(results[i].label == data_test[i].label){
                 correctPrediction++;
             }
             //printf("test data point id: %d, predict label: %d, real label: %d\n", i, results[i].label, data_test[i].label);
         }
 
-    accuracy = static_cast<double>(correctPrediction) / results.length;
+    accuracy = static_cast<double>(correctPrediction) / results_size;
     printf("accuracy: %lf\n", accuracy);
 //    for(DataPoint dp : results){
 //        printf("test data point id: %d, label : %d\n", dp.id, dp.label);
@@ -87,21 +88,22 @@ int main(int argc, char *argv[])
 
 DataPoint assignLabel(DataPoint target_datapoint, Distance *distances, int k){
 //    malloc and initialize
-    char *dis_map_keys = malloc(sizeof(char)*k);
-    for(int i=0;i<dis_map_keys.length;i++){
+    char *dis_map_keys = (char *)malloc(sizeof(char)*k);
+    for(int i=0;i<k;i++){
         dis_map_keys[i] = '#';
     }
-    double *dis_map_values = malloc(sizeof(double)*k);
-    for(int i=0; i<dis_map_values.length;i++){
+    double *dis_map_values = (double *)malloc(sizeof(double)*k);
+    for(int i=0; i<k;i++){
         dis_map_values[i] = 0;
     }
 
     //assign values
-    for(int i=0;i<distances.size();i++){
+    int distance_size = sizeof(distances)/sizeof(Distance);
+    for(int i=0;i<distance_size;i++){
         char ds_char = distances[i].dest_datapoint.label;
         double ds_ds = distances[i].distance;
         dis_map_keys[i] = ds_char;
-        dis_map_values[i] += ds_ds
+        dis_map_values[i] += ds_ds;
     }
 
     //get the smallest values
@@ -147,13 +149,14 @@ DataPoint assignLabel(DataPoint target_datapoint, Distance *distances, int k){
 }
 
 
-DataPoint *getSmallestDistances(DataPoint datapoint, DataPoint *data_train, int k, int func){
-    int data_set_size = data_train.length;
-    DataPoint *temp_data_train = malloc(sizeof(DataPoint)*data_set_size);
+Distance *getSmallestDistances(DataPoint datapoint, DataPoint *data_train, int k, int func){
+   // int data_set_size = data_train.length();
+    int data_set_size = sizeof(data_train)/sizeof(DataPoint);
+    DataPoint *temp_data_train = (DataPoint *)malloc(sizeof(DataPoint)*data_set_size);
     memcpy(temp_data_train, data_train, sizeof(DataPoint)*data_set_size);
     for(int i=0;i<data_set_size;i++){
         for(int j=0;j<data_set_size-i-1;j++){
-            if(temp_data_train[j]>temp_data_train[j+1]){
+            if(distanceFunc(datapoint, temp_data_train[j], func)>distanceFunc(datapoint, temp_data_train[j+1], func)){
                 DataPoint temp = temp_data_train[j];
                 temp_data_train[j] = temp_data_train[j+1];
                 temp_data_train[j+1] = temp;
@@ -161,8 +164,13 @@ DataPoint *getSmallestDistances(DataPoint datapoint, DataPoint *data_train, int 
         }
     }
 
-    DataPoint *result = malloc(sizeof(DataPoint)*k);
-    memcpy(result, temp_data_train, sizeof(DataPoint)*k);
+    Distance *result = (Distance *) malloc(sizeof(DataPoint)*k);
+    for(int i=0;i<k;i++){
+        result[i].src_datapoint = datapoint;
+        result[i].dest_datapoint = temp_data_train[i];
+        result[i].distance = distanceFunc(datapoint, temp_data_train[i], func);
+    }
+//    memcpy(result, temp_data_train, sizeof(DataPoint)*k);
 
     free(temp_data_train);
     return result;
@@ -173,16 +181,16 @@ DataPoint *getSmallestDistances(DataPoint datapoint, DataPoint *data_train, int 
 DataPoint *predictLables(vector<DataPoint> data_test, vector<DataPoint> data_train, int k, int func){
 //    vector<DataPoint> results;
 
-    DataPoint * results = malloc(sizeof(DataPoint)*data_train.size());
+    DataPoint * results = (DataPoint *)malloc(sizeof(DataPoint)*data_train.size());
     //change vector to array
-    DataPoint *data_train_arr = malloc(sizeof(DataPoint)*data_train.size());
+    DataPoint *data_train_arr = (DataPoint *)malloc(sizeof(DataPoint)*data_train.size());
     for(int i=0;i<data_train.size();i++){
         data_train_arr[i] = data_train.at(i);
     }
 
 
     for(int i=0;i<data_test.size();i++){
-        DataPoint *k_nearest_neighbors = getSmallestDistances(data_test[i], data_train_arr, k, func);
+        Distance *k_nearest_neighbors = getSmallestDistances(data_test[i], data_train_arr, k, func);
         data_test[i] = assignLabel(data_test[i], k_nearest_neighbors, k);
 //        results.push_back(data_test[i]);
         results[i] = data_test[i];
