@@ -17,7 +17,14 @@ class DataPoint
 public:
     DataPoint(){};
     //virtual ~DataPoint();
-
+    DataPoint(DataPoint const & dp){
+        this->id = dp.id;
+        for(int i = 0;i < dp.attributes.size();i++){
+            double tmp = dp.attributes[i];
+            this->attributes.push_back(tmp);
+        }
+        this->label = dp.label;
+    }
     int id;
     vector<double> attributes;
     int label;
@@ -32,7 +39,7 @@ struct Distance{
     double distance;
 };
 
-double distanceFunc(DataPoint datapoint1, DataPoint datapoint2);
+double distanceFunc(DataPoint datapoint1, DataPoint datapoint2, int func);
 vector<DataPoint> parseFile(int argc, char *argv[]);
 vector<DataPoint> parseFile_test(int argc, char *argv[]);
 bool operator <(Distance distance_a, Distance distance_b);

@@ -1,5 +1,6 @@
 #include "knn_header.h"
 #include "knn_prep.cpp"
+#include "kmeans.cpp"
 
 int parseFunc(char *argv[]){
     int funcNumber = 0;
@@ -28,19 +29,21 @@ int main(int argc, char *argv[])
 
     vector<DataPoint> data_train = parseFile(argc, argv);
 
-    for(DataPoint dp: data_train){
-      //  printf("id: %d \n", dp.id);
-    }
+//    for(DataPoint dp: data_train){
+//      //  printf("id: %d \n", dp.id);
+//    }
 
     //printf("test data\n");
 
     vector<DataPoint> data_test = parseFile_test(argc,argv);
 
-    for(DataPoint dp: data_test){
-        //printf("id: %d \n", dp.id);
-    }
+//    for(DataPoint dp: data_test){
+//        //printf("id: %d \n", dp.id);
+//    }
 
     int func = parseFunc(argv);
+
+    Kmeans kmeans = clustersInit(data_train, 8);
 
     vector<DataPoint> results = predictLables(data_test, data_train, 8, func);
 
@@ -120,16 +123,16 @@ vector<DataPoint> predictLables(vector<DataPoint> data_test, vector<DataPoint> d
         priority_queue<Distance> pq = getPriorityQueue(test_dp, data_train, func);
 
         vector<Distance> test;
-        while(!pq.empty()){
-            Distance ds = pq.top();
-            //printf("priorityqueue src id :%d dst id: %d id dst label :%c distance :%d\n",ds.src_datapoint.id, ds.dest_datapoint.id, ds.dest_datapoint.label, ds.distance);
-            pq.pop();
-            test.push_back(ds);
-        }
-
-        for(Distance ds: test){
-            pq.push(ds);
-        }
+//        while(!pq.empty()){
+//            Distance ds = pq.top();
+//            //printf("priorityqueue src id :%d dst id: %d id dst label :%c distance :%d\n",ds.src_datapoint.id, ds.dest_datapoint.id, ds.dest_datapoint.label, ds.distance);
+//            pq.pop();
+//            test.push_back(ds);
+//        }
+//
+//        for(Distance ds: test){
+//            pq.push(ds);
+//        }
 
         //printf("\nnearest neighbors\n");
         vector<Distance> nearestneighbors = findNeighbors(test_dp, pq, k);
