@@ -45,20 +45,21 @@ int main(int argc, char *argv[])
 
     Kmeans kmeans = clustersInit(data_train, 8);
 
-    vector<DataPoint> results = predictLables(data_test, data_train, 8, func);
+    DataPoint *results = predictLables(data_test, data_train, 8, func);
 
     printf("\npredict results\n");
 
     int correctPrediction = 0;
     double accuracy = 0;
-    for(int i = 0;i < results.size();i++){
-        if(results[i].label == data_test[i].label){
-            correctPrediction++;
-        }
-        //printf("test data point id: %d, predict label: %d, real label: %d\n", i, results[i].label, data_test[i].label);
-    }
 
-    accuracy = static_cast<double>(correctPrediction) / results.size();
+    for(int i = 0;i < results.length;i++){
+            if(results[i].label == data_test[i].label){
+                correctPrediction++;
+            }
+            //printf("test data point id: %d, predict label: %d, real label: %d\n", i, results[i].label, data_test[i].label);
+        }
+
+    accuracy = static_cast<double>(correctPrediction) / results.length;
     printf("accuracy: %lf\n", accuracy);
 //    for(DataPoint dp : results){
 //        printf("test data point id: %d, label : %d\n", dp.id, dp.label);
@@ -169,9 +170,10 @@ DataPoint *getSmallestDistances(DataPoint datapoint, DataPoint *data_train, int 
 }
 
 
-vector<DataPoint> predictLables(vector<DataPoint> data_test, vector<DataPoint> data_train, int k, int func){
-    vector<DataPoint> results;
+DataPoint *predictLables(vector<DataPoint> data_test, vector<DataPoint> data_train, int k, int func){
+//    vector<DataPoint> results;
 
+    DataPoint * results = malloc(sizeof(DataPoint)*data_train.size());
     //change vector to array
     DataPoint *data_train_arr = malloc(sizeof(DataPoint)*data_train.size());
     for(int i=0;i<data_train.size();i++){
@@ -182,7 +184,8 @@ vector<DataPoint> predictLables(vector<DataPoint> data_test, vector<DataPoint> d
     for(int i=0;i<data_test.size();i++){
         DataPoint *k_nearest_neighbors = getSmallestDistances(data_test[i], data_train_arr, k, func);
         data_test[i] = assignLabel(data_test[i], k_nearest_neighbors, k);
-        results.push_back(data_test[i]);
+//        results.push_back(data_test[i]);
+        results[i] = data_test[i];
     }
 
 
