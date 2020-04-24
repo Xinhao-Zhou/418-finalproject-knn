@@ -70,84 +70,132 @@ int main(int argc, char *argv[])
 
 
 
-vector<Distance> findNeighbors(DataPoint target_point, priority_queue<Distance> distances, int k){
-    vector<Distance> nearest_neighbors;
+//vector<Distance> findNeighbors(DataPoint target_point, priority_queue<Distance> distances, int k){
+//    vector<Distance> nearest_neighbors;
+//
+//    for(int i=0;i<k;i++){
+//        Distance top_ds = distances.top();
+//        nearest_neighbors.push_back(top_ds);
+//        distances.pop();
+//    }
+//
+//    return nearest_neighbors;
+//
+//}
 
-    for(int i=0;i<k;i++){
-        Distance top_ds = distances.top();
-        nearest_neighbors.push_back(top_ds);
-        distances.pop();
+
+DataPoint assignLabel(DataPoint target_datapoint, Distance *distances, int k){
+//    malloc and initialize
+    char *dis_map_keys = malloc(sizeof(char)*k);
+    for(int i=0;i<dis_map_keys.length;i++){
+        dis_map_keys[i] = '#';
+    }
+    double *dis_map_values = malloc(sizeof(double)*k);
+    for(int i=0; i<dis_map_values.length;i++){
+        dis_map_values[i] = 0;
     }
 
-    return nearest_neighbors;
+    //assign values
+    for(int i=0;i<distances.size();i++){
+        char ds_char = distances[i].dest_datapoint.label;
+        double ds_ds = distances[i].distance;
+        dis_map_keys[i] = ds_char;
+        dis_map_values[i] += ds_ds
+    }
+
+    //get the smallest values
+    char final_label = dis_map_keys[0];
+    double final_distance = dis_map_values[0];
+
+    for(int i=1;i<k;i++){
+        if(dis_map_values[i]<final_distance && dis_map_keys[i]!='#'){
+            final_label = dis_map_keys[i];
+            final_distance = dis_map_values[i];
+        }
+    }
+
+    target_datapoint.label = final_label;
+     return target_datapoint;
+
+//    map<char,double> dis_map;
+//    for(Distance ds:distances){
+//        char ds_char = ds.dest_datapoint.label;
+//        double ds_ds = (double)ds.distance;
+//        map<char,double>::iterator iter_char = dis_map.find(ds_char);
+//        if(iter_char!=dis_map.end()){
+//            ds_ds += dis_map.at(ds_char);
+//            dis_map[ds_char] = ds_ds;
+//        }else{
+//            dis_map[ds_char] = ds_ds;
+//        }
+//    }
+//
+//    map<char,double>::iterator iter = dis_map.begin();
+//    double temp_weight = (numeric_limits<double>::max)();
+//    while(iter != dis_map.end()) {
+//        //cout << iter->first << " : " << iter->second << endl;
+//        if(iter->second<temp_weight){
+//            temp_weight = iter->second;
+//            target_datapoint.label = iter->first;
+//        }
+//        iter++;
+//    }
+//
+//    return target_datapoint;
 
 }
 
 
-DataPoint assignLabel(DataPoint target_datapoint, vector<Distance> distances){
-    map<char,double> dis_map;
-    for(Distance ds:distances){
-        char ds_char = ds.dest_datapoint.label;
-        //double temp = (double)1/(ds.distance+1);
-        //printf("temp : %f", temp);
-        double ds_ds = (double)ds.distance;
-        //printf("char : %c, distance: %f\n", ds_char, ds_ds);
-        map<char,double>::iterator iter_char = dis_map.find(ds_char);
-        if(iter_char!=dis_map.end()){
-            ds_ds += dis_map.at(ds_char);
-            dis_map[ds_char] = ds_ds;
-        }else{
-            dis_map[ds_char] = ds_ds;
+DataPoint *getSmallestDistances(DataPoint datapoint, DataPoint *data_train, int k, int func){
+    int data_set_size = data_train.length;
+    DataPoint *temp_data_train = malloc(sizeof(DataPoint)*data_set_size);
+    memcpy(temp_data_train, data_train, sizeof(DataPoint)*data_set_size);
+    for(int i=0;i<data_set_size;i++){
+        for(int j=0;j<data_set_size-i-1;j++){
+            if(temp_data_train[j]>temp_data_train[j+1]){
+                DataPoint temp = temp_data_train[j];
+                temp_data_train[j] = temp_data_train[j+1];
+                temp_data_train[j+1] = temp;
+            }
         }
     }
 
-    map<char,double>::iterator iter = dis_map.begin();
-    double temp_weight = (numeric_limits<double>::max)();
-    while(iter != dis_map.end()) {
-        //cout << iter->first << " : " << iter->second << endl;
-        if(iter->second<temp_weight){
-            temp_weight = iter->second;
-            target_datapoint.label = iter->first;
-        }
-        iter++;
-    }
+    DataPoint *result = malloc(sizeof(DataPoint)*k);
+    memcpy(result, temp_data_train, sizeof(DataPoint)*k);
 
+    free(temp_data_train);
+    return result;
 
-    return target_datapoint;
 }
 
 
 vector<DataPoint> predictLables(vector<DataPoint> data_test, vector<DataPoint> data_train, int k, int func){
     vector<DataPoint> results;
-    for(DataPoint test_dp : data_test){
-        priority_queue<Distance> pq = getPriorityQueue(test_dp, data_train, func);
 
-        vector<Distance> test;
-//        while(!pq.empty()){
-//            Distance ds = pq.top();
-//            //printf("priorityqueue src id :%d dst id: %d id dst label :%c distance :%d\n",ds.src_datapoint.id, ds.dest_datapoint.id, ds.dest_datapoint.label, ds.distance);
-//            pq.pop();
-//            test.push_back(ds);
-//        }
-//
-//        for(Distance ds: test){
-//            pq.push(ds);
-//        }
-
-        //printf("\nnearest neighbors\n");
-        vector<Distance> nearestneighbors = findNeighbors(test_dp, pq, k);
-
-        for(Distance ds: nearestneighbors){
-            //printf("src id :%d dst id: %d id dst label :%c distance :%d\n", ds.src_datapoint.id, ds.dest_datapoint.id, ds.dest_datapoint.label, ds.distance);
-        }
-
-        //printf("\niterate map\n");
-        test_dp = assignLabel(test_dp, nearestneighbors);
-
-        //printf("\nassign label\n");
-        //printf("test data point label: %c\n",test_dp.label);
-        results.push_back(test_dp);
+    //change vector to array
+    DataPoint *data_train_arr = malloc(sizeof(DataPoint)*data_train.size());
+    for(int i=0;i<data_train.size();i++){
+        data_train_arr[i] = data_train.at(i);
     }
+
+
+    for(int i=0;i<data_test.size();i++){
+        DataPoint *k_nearest_neighbors = getSmallestDistances(data_test[i], data_train_arr, k, func);
+        data_test[i] = assignLabel(data_test[i], k_nearest_neighbors, k);
+        results.push_back(data_test[i]);
+    }
+
+
+//    vector<DataPoint> results;
+//    for(DataPoint test_dp : data_test){
+//        priority_queue<Distance> pq = getPriorityQueue(test_dp, data_train, func);
+//
+//        vector<Distance> test;
+//        vector<Distance> nearestneighbors = findNeighbors(test_dp, pq, k);
+//        test_dp = assignLabel(test_dp, nearestneighbors, k);
+//
+//        results.push_back(test_dp);
+//    }
 
     return results;
 }

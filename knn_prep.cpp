@@ -146,30 +146,30 @@ vector<DataPoint> parseFile_test(int argc, char *argv[]){
 
 
 
-bool operator <(Distance distance_a, Distance distance_b)
-{
-    if(distance_a.distance>distance_b.distance){
-        return true;
-    }else if(distance_a.distance==distance_b.distance){
-        if(distance_a.dest_datapoint.id>distance_b.dest_datapoint.id){
-            return true;
-        }else{
-            return false;
-        }
-    }else{
-        return false;
-    }
-}
-
-priority_queue<Distance> getPriorityQueue(DataPoint target_point, vector<DataPoint> datapoints, int func){
-    priority_queue<Distance> pq;
-    for(DataPoint dp:datapoints){
-        Distance ds;
-        ds.src_datapoint = target_point;
-        ds.dest_datapoint = dp;
-        ds.distance = distanceFunc(target_point, dp, func);
-        pq.push(ds);
-    }
-    return pq;
-}
+//bool operator <(Distance distance_a, Distance distance_b)
+//{
+//    if(distance_a.distance>distance_b.distance){
+//        return true;
+//    }else if(distance_a.distance==distance_b.distance){
+//        if(distance_a.dest_datapoint.id>distance_b.dest_datapoint.id){
+//            return true;
+//        }else{
+//            return false;
+//        }
+//    }else{
+//        return false;
+//    }
+//}
+//
+//priority_queue<Distance> getPriorityQueue(DataPoint target_point, vector<DataPoint> datapoints, int func){
+//    priority_queue<Distance> pq;
+//    for(DataPoint dp:datapoints){
+//        Distance ds;
+//        ds.src_datapoint = target_point;
+//        ds.dest_datapoint = dp;
+//        ds.distance = distanceFunc(target_point, dp, func);
+//        pq.push(ds);
+//    }
+//    return pq;
+//}
 
