@@ -44,10 +44,11 @@ double distanceFunc(DataPoint datapoint1, DataPoint datapoint2, int func);
 vector<DataPoint> parseFile(int argc, char *argv[]);
 vector<DataPoint> parseFile_test(int argc, char *argv[]);
 bool operator <(Distance distance_a, Distance distance_b);
-priority_queue<Distance> getPriorityQueue(DataPoint target_point, vector<DataPoint> datapoints, int func);
-vector<Distance> findNeighbors(DataPoint datapoint, priority_queue<Distance> train_datapoints, int k);
-DataPoint assignLabel(DataPoint target_datapoint, vector<Distance> distances);
-vector<DataPoint> predictLables(vector<DataPoint> data_test, vector<DataPoint> data_train, int k, int func);
+//priority_queue<Distance> getPriorityQueue(DataPoint target_point, vector<DataPoint> datapoints, int func);
+//vector<Distance> findNeighbors(DataPoint datapoint, priority_queue<Distance> train_datapoints, int k);
+Distance *getSmallestDistances(DataPoint datapoint, DataPoint *data_train, int k, int func);
+DataPoint assignLabel(DataPoint target_datapoint, Distance *distances, int k);
+DataPoint *predictLables(vector<DataPoint> data_test, vector<DataPoint> data_train, int k, int func);
 
 
 #endif // KNN_HEADER_H_INCLUDED
