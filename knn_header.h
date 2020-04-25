@@ -7,6 +7,7 @@
 #include <string.h>
 #include <cmath>
 #include <stdlib.h>
+#include "cycletimer.h"
 
 using namespace std;
 
@@ -18,14 +19,14 @@ class DataPoint
 public:
     DataPoint(){};
     //virtual ~DataPoint();
-    DataPoint(DataPoint const & dp){
-        this->id = dp.id;
-        for(int i = 0;i < dp.attributes.size();i++){
-            double tmp = dp.attributes[i];
-            this->attributes.push_back(tmp);
-        }
-        this->label = dp.label;
-    }
+//    DataPoint(DataPoint const & dp){
+//        this->id = dp.id;
+//        for(int i = 0;i < dp.attributes.size();i++){
+//            double tmp = dp.attributes[i];
+//            this->attributes.push_back(tmp);
+//        }
+//        this->label = dp.label;
+//    }
     int id;
     vector<double> attributes;
     int label;
