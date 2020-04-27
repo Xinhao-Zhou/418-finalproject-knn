@@ -127,6 +127,7 @@ vector<DataPoint> _parseFile(char *FILE){
     return dataList;
 }
 
+
 //shell> myprogram train_data_set test_data_set
 vector<DataPoint> parseFile(int argc, char *argv[]){
     if(argc < 3){
@@ -144,7 +145,27 @@ vector<DataPoint> parseFile_test(int argc, char *argv[]){
     return pq;
 }
 
+double *getAttributesArray(vector<DataPoint> vec){
+    int len = vec.size();
+    int attributesCount = vec[0].attributes.size();
 
+    double *ret = new double[len * attributesCount];
+    for(int i = 0;i < vec.size();i++){
+        for(int j = 0;j < attributesCount;j++){
+            ret[i * attributesCount + j] = vec[i].attributes[j];
+        }
+    }
+    return ret;
+}
+
+int *getLabelArray(vector<DataPoint> vec){
+    int len = vec.size();
+    int *ret = new int[len];
+    for(int i = 0;i < len;i++){
+        ret[i] = vec[i].label;
+    }
+    return ret;
+}
 
 bool operator <(Distance distance_a, Distance distance_b)
 {

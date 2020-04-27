@@ -41,6 +41,9 @@ struct Distance{
     double distance;
 };
 
+int *getLabelArray(vector<DataPoint> vec);
+double *getAttributesArray(vector<DataPoint> vec);
+
 double distanceFunc(DataPoint datapoint1, DataPoint datapoint2, int func);
 vector<DataPoint> parseFile(int argc, char *argv[]);
 vector<DataPoint> parseFile_test(int argc, char *argv[]);
