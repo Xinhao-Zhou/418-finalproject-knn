@@ -1,0 +1,8 @@
+//
+// Created by 郭三山 on 4/25/20.
+//
+
+#ifndef INC_418_FINALPROJECT_KNN_CUDA_KNN_H
+#define INC_418_FINALPROJECT_KNN_CUDA_KNN_H
+
+#endif //INC_418_FINALPROJECT_KNN_CUDA_KNN_H
