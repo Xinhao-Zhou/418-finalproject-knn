@@ -196,14 +196,6 @@ __global__ void KmeansUpdateCentralPointsAttributes(cudaKmeans kmeans, double *d
 			__syncthreads();
 		}
 	}
-
-
-	// //Get new central points
-	// if(threadIdx.x < k * attributesCount){
-	// 	int row = threadIdx.x / attributesCount;
-	// 	int col = threadIdx.x % attributesCount;
-	// 	newCentralPoint[row * attributesCount + col] = kmeans.clusters[row].centralPoint[col] / kmeans.clusters;
-	// }
 }
 
 __global__ void KmeansGetNewCentralPoint(cudaKmeans kmeans, int k, int attributesCount){
@@ -238,7 +230,7 @@ __global__ void compareOldAndNewCentralPoint(cudaKmeans kmeans, int *quitFlag, i
 		return;
 	}
 
-	if(threadIdx.x < k * attributesCount){
+	if(threadIdx.x < k * attributesCount){ 
 		int row = threadIdx.x / attributesCount;
 		int col = threadIdx.x % attributesCount;
 
@@ -253,8 +245,23 @@ __global__ void compareOldAndNewCentralPoint(cudaKmeans kmeans, int *quitFlag, i
 cudaKmeans getClusters(double *trainSet, int trainSize, int attributesCount, int k){
 	double *device_trainSet;
 
-	cudaKmeans ret = cudaKmeansInit(k, attributesCount, trainSize);
+	cudaKmeans kmeans = cudaKmeansInit(k, attributesCount, trainSize);
 	device_trainSet = MoveTrainSetToCuda(trainSet, trainSize, attributesCount);
 
+	int blockCount = (trainSize + BLOCK_DIM - 1) / BLOCK_DIM;
+	int *device_quitFlag, *quitFlag;
+	int iteration = 0;
+	*quitFlag = 0;
+	
+	cudaMalloc(void(**)&device_quitFlag, sizeof(int));
 
+	firstComputeDistance<<<blockCount, BLOCK_DIM>>>(kmeans, device_trainSet, k, trainSize, attributesCount);
+
+	for(;quitFlag != 0;){
+		KmeansUpdateCentralPointsAttributes<<<blockCount, BLOCK_DIM>>>(kmeans, device_trainSet, k, trainSize, attributesCount);
+		cudaDeviceSynchronize();
+		KmeansGetNewCentralPoint<<<1, BLOCK_DIM>>>(kmeans, k, attributesCount);
+		compareOldAndNewCentralPoint<<<1, BLOCK_DIM>>>(cudaKmeans kmeans, int *quitFlag, int iteration, int k, int attributesCount);
+		cudaMemcpy(quitFlag, device_quitFlag, cudaMemcpyDeviceToHost);
+	}
 }

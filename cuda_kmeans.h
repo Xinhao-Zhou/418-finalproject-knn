@@ -18,6 +18,7 @@ public:
 	int size;
 	int attributesCount;
 	double *centralPoint;//central points' attributes.
+	double *oldCentralPoint;
 protected:
 
 private:	
