@@ -1,6 +1,7 @@
 #include "knn_header.h"
 #include "knn_prep.cpp"
 #include "kmeans.cpp"
+#include "cuda_kmeans.h"
 
 int parseFunc(char *argv[]){
     int funcNumber = 0;
@@ -37,10 +38,19 @@ int main(int argc, char *argv[])
 
     vector<DataPoint> data_test = parseFile_test(argc,argv);
 
+    double *trainSet = getAttributesArray(data_train);
+    
+    cudaKmeans *ckmeans = getClusters(trainSet, data_train.size(), data_train[0].attributes.size(), 8);
+    delete [] trainSet;
 //    for(DataPoint dp: data_test){
 //        //printf("id: %d \n", dp.id);
 //    }
 
+    //Test cuda kmeans
+
+
+
+/*
     int func = parseFunc(argv);
 
     printf("before kmeans");
@@ -67,7 +77,7 @@ int main(int argc, char *argv[])
 //    for(DataPoint dp : results){
 //        printf("test data point id: %d, label : %d\n", dp.id, dp.label);
 //    }
-
+*/
     return 0;
 }
 
