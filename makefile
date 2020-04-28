@@ -1,8 +1,8 @@
 DEBUG=0
-CC=clang++
+CC=g++ 
 NVCC=nvcc
-CFLAGS=-g -O3 -Wall -DDEBUG=$(DEBUG)
-NVCC_FLAGS=-O3 -m64 --gpu-architecture compute_61 -ccbin /usr/bin/gcc
+CFLAGS=-O3 -Wall -g  -std=c++11 -L/usr/local/depot/cuda-10.2/lib64/ -lcudart
+NVCC_FLAGS=-O3 -m64 --gpu-architecture compute_61 --std=c++11#-ccbin /usr/bin/$(CC) --compiler-options "-std=c++11"
 
 CFILES = main.cpp knn_prep.cpp kmeans.cpp
 HFILES = knn_header.h kmeans.h
@@ -12,7 +12,7 @@ all: knn
 cuda: cudaKmeans.o
 
 knn: knn_prep.o kmeans.o cycletimer.o cudaKmeans.o
-	$(CC) $(CFLAGS) main.cpp -o knn
+	$(CC) $(CFLAGS) main.cpp -o knn  cudaKmeans.o
 
 knn_prep.o:
 	$(CC) $(CFLAGS) -c knn_prep.cpp -o knn_prep.o
@@ -27,4 +27,4 @@ cudaKmeans.o:
 	$(NVCC) $(NVCC_FLAGS) -c cuda_kmeans.cu -o cudaKmeans.o
 
 clean:
-	rm -f knn knn_prep.o kmeans.o
+	rm -f knn knn_prep.o kmeans.o cycletimer.o

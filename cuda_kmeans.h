@@ -5,7 +5,6 @@
 #ifndef INC_418_FINALPROJECT_KNN_CUDA_KMEANS_H
 #define INC_418_FINALPROJECT_KNN_CUDA_KMEANS_H
 
-#include "knn_header.h"
 #define DEFAULT_K 8
 
 class cudaCluster{
@@ -19,10 +18,8 @@ public:
 	int attributesCount;
 	double *centralPoint;//central points' attributes.
 	double *oldCentralPoint;
-protected:
 
-private:	
-}
+};
 
 class cudaKmeans{
 public:
@@ -35,8 +32,8 @@ public:
 protected:
 
 private:	
-}
+};
 
-cudaKmeans getClusters();
+cudaKmeans *getClusters(double *trainSet, int trainSize, int attributesCount, int k);
 
 #endif //INC_418_FINALPROJECT_KNN_CUDA_KMEANS_H
