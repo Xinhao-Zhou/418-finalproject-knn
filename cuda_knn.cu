@@ -67,6 +67,9 @@ int *cuPredict(double *trainAttr, int* trainLabels, int trainSize, int trainLeng
 	cudaMemcpy(device_trainLabels, trainLabels, sizeof(int) * trainLength, cudaMemcpyHostToDevice);
 	cudaMemcpy(device_testAttr, testAttr, sizeof(double) * testSize, cudaMemcpyHostToDevice);
 
+
+
+
 	cudaFree(device_trainAttr);
 	cudaFree(device_testAttr);
 	cudaFree(device_trainLabels);
