@@ -28,7 +28,6 @@ public:
 	}
 
 	cudaCluster *clusters;
-	int *pointClusterIdx;
 protected:
 
 private:	
