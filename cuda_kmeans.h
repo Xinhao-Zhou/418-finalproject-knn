@@ -34,6 +34,6 @@ protected:
 private:	
 };
 
-cudaKmeans *getClusters(double *trainSet, int trainSize, int attributesCount, int k);
+void getClusters(double *trainSet, int trainSize, int attributesCount, int k);
 
 #endif //INC_418_FINALPROJECT_KNN_CUDA_KMEANS_H

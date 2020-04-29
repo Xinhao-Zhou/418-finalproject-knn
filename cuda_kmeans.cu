@@ -80,7 +80,7 @@ __device__ double distanceFunc(double *attr1, double *attr2, int attributesCount
 	return distance;
 }
 
-__global__ void firstComputeDistance(cudaKmeans *kmeans, double *device_trainSet, int k, int trainSize, int attributesCount){
+__global__ void firstComputeDistance(double *centralPoint, int *pointClusterIdx, double *device_trainSet, int k, int trainSize, int attributesCount){
 
 	__shared__ double centralPoints[MAX_K * MAXATTRSIZE];
 	int idx = BLOCK_DIM * blockIdx.x + threadIdx.x;
@@ -90,7 +90,7 @@ __global__ void firstComputeDistance(cudaKmeans *kmeans, double *device_trainSet
 
 	if(threadIdx.x < k){
 		for(int i = 0;i < attributesCount;i++){
-			centralPoints[MAXATTRSIZE * threadIdx.x + i] = kmeans->clusters[threadIdx.x].centralPoint[i];
+			centralPoints[MAXATTRSIZE * threadIdx.x + i] = centralPoint[i];
 		}
 	}
      
@@ -111,11 +111,11 @@ __global__ void firstComputeDistance(cudaKmeans *kmeans, double *device_trainSet
 
 	__syncthreads();
 	//Write cluster idx to global memory.
-	kmeans->pointClusterIdx[BLOCK_DIM * blockIdx.x + threadIdx.x] = minIdx;
+	pointClusterIdx[BLOCK_DIM * blockIdx.x + threadIdx.x] = minIdx;
 }
 
 //
-__global__ void KmeansUpdateCentralPointsAttributes(cudaKmeans *kmeans, double *device_trainSet, int k, int trainSize, int attributesCount){
+__global__ void KmeansUpdateCentralPointsAttributes(double *centralPoint, int *clusterSize, int *pointClusterIdx, double *device_trainSet, int k, int trainSize, int attributesCount){
 	__shared__ double sumArray[BLOCK_DIM * MAXATTRSIZE];
 	__shared__ double sumOutput[BLOCK_DIM];
 	__shared__ double sumScratch[BLOCK_DIM * 2];
@@ -129,7 +129,7 @@ __global__ void KmeansUpdateCentralPointsAttributes(cudaKmeans *kmeans, double *
 
     int pointIdx = blockIdx.x * blockDim.x + threadIdx.x;
 
-    int clusterIdx = kmeans->pointClusterIdx[pointIdx];
+    int clusterIdx = pointClusterIdx[pointIdx];
 
 
     //Set central points' attributes to 0. Store original central points.
@@ -138,12 +138,12 @@ __global__ void KmeansUpdateCentralPointsAttributes(cudaKmeans *kmeans, double *
     	int attrID = threadIdx.x % MAXATTRSIZE;
 
     	//oldCentralPoint[tmpCId * MAXATTRSIZE + attrID] = kmeans->clusters[tmpCId].centralPoint[attrID];
-    	kmeans->clusters[tmpCId].centralPoint[attrID] = 0.f;//Set the original central point to 0
+    	centralPoint[attrID] = 0.f;//Set the original central point to 0
    	}
 
    	//Set cluster size to 0.
    	if(threadIdx.x < k){
-   		kmeans->clusters[threadIdx.x].size = 0;
+   		clusterSize[threadIdx.x] = 0;
    	}
 
    	__syncthreads();
@@ -162,7 +162,7 @@ __global__ void KmeansUpdateCentralPointsAttributes(cudaKmeans *kmeans, double *
     	if(threadIdx.x == BLOCK_DIM - 1){
     		//Add cluster size
     		inClusterOutput[threadIdx.x] += inClusterFlag[threadIdx.x];
-    		atomicAdd(&(kmeans->clusters[i].size), inClusterOutput[threadIdx.x]);//Remember to set this to 0!
+    		atomicAdd(&(clusterSize[clusterIdx]), inClusterOutput[threadIdx.x]);//Remember to set this to 0!
     	}
     }
 
@@ -180,7 +180,7 @@ __global__ void KmeansUpdateCentralPointsAttributes(cudaKmeans *kmeans, double *
 		__syncthreads();
 		//Sum all attributes inside this block
 		for(int j = 0;j < attributesCount;j++){
-                        double tmp;
+            double tmp;
 			//Save the last one before the prefix sum.
 			if(threadIdx.x == BLOCK_DIM - 1){
 				tmp = sumArray[(j + 1) * BLOCK_DIM - 1];
@@ -193,19 +193,19 @@ __global__ void KmeansUpdateCentralPointsAttributes(cudaKmeans *kmeans, double *
 				sumOutput[threadIdx.x] += tmp;
 
 				//Add to global variable
-				atomicAdd(&(kmeans->clusters[i].centralPoint[j]), sumOutput[threadIdx.x]);
+				atomicAdd(&(centralPoint[clusterIdx * attributesCount + j]), sumOutput[threadIdx.x]);
 			}
 			__syncthreads();
 		}
 	}
 }
 
-__global__ void KmeansGetNewCentralPoint(cudaKmeans *kmeans, int k, int attributesCount){
+__global__ void KmeansGetNewCentralPoint(double *centralPoint, int *clusterSize, int k, int attributesCount){
 	__shared__ int sizes[MAX_K];
 	__shared__ double newCentralPoints[MAX_K * MAXATTRSIZE];
 
 	if(threadIdx.x < k){
-		sizes[threadIdx.x] = kmeans->clusters[threadIdx.x].size;
+		sizes[threadIdx.x] = clusterSize[threadIdx.x];
 	}
 
 	__syncthreads();
@@ -214,13 +214,13 @@ __global__ void KmeansGetNewCentralPoint(cudaKmeans *kmeans, int k, int attribut
 		int row = threadIdx.x / attributesCount;
 		int col = threadIdx.x % attributesCount;
 
-		newCentralPoints[row * attributesCount + col] = kmeans->clusters[row].centralPoint[col] / sizes[row];
-		kmeans->clusters[row].centralPoint[col] = newCentralPoints[row * attributesCount + col];//write back
+		newCentralPoints[row * attributesCount + col] = centralPoint[row * attributesCount + col] / sizes[row];
+		centralPoint[row * attributesCount + col] = newCentralPoints[row * attributesCount + col];//write back
 	}
 
 }
 
-__global__ void compareOldAndNewCentralPoint(cudaKmeans *kmeans, int *quitFlag, int iteration, int k, int attributesCount){
+__global__ void compareOldAndNewCentralPoint(double *centralPoint, double *oldCentralPoint, int *quitFlag, int iteration, int k, int attributesCount){
 	if(threadIdx.x == 0){
 		*quitFlag = 0;
 	}
@@ -235,19 +235,59 @@ __global__ void compareOldAndNewCentralPoint(cudaKmeans *kmeans, int *quitFlag, 
 	if(threadIdx.x < k * attributesCount){ 
 		int row = threadIdx.x / attributesCount;
 		int col = threadIdx.x % attributesCount;
+		int offset = row * attributesCount + col;
 
-		double diff = fabs(kmeans->clusters[row].centralPoint[col] - kmeans->clusters[row].oldCentralPoint[col]);
+		double diff = fabs(centralPoint[offset] - oldCentralPoint[offset]);
 		if(diff > ERROR_THRESHOLD){
 			atomicAdd(quitFlag, 1);
 		}
-		kmeans->clusters[row].oldCentralPoint[col] = kmeans->clusters[row].centralPoint[col];//Set old central point.
+		oldCentralPoint[offset] = centralPoint[offset];//Set old central point.
 	}
 }
 
-cudaKmeans *getClusters(double *trainSet, int trainSize, int attributesCount, int k){
+void getClusters(double *trainSet, int trainSize, int attributesCount, int k){
 	double *device_trainSet;
+	double *device_clusters;
+	int *pointClusterIdx;
+	double *centralPoint;
+	double *oldCentralPoint;
+	int *clusterSize;
 
-	cudaKmeans *kmeans = cudaKmeansInit(k, attributesCount, trainSize, trainSet);
+	cudaMalloc((void **)&device_trainSet, sizeof(double) * trainSize);
+	cudaMalloc((void **)&device_clusters, sizeof(double) * trainSize * k);
+	cudaMalloc((void **)&pointClusterIdx, sizeof(int) * trainSize);
+	cudaMalloc((void **)&centralPoint, sizeof(double) * attributesCount * k);
+	cudaMalloc((void **)&oldCentralPoint, sizeof(double) * attributesCount * k);
+	cudaMalloc((void **)&clusterSize, sizeof(int) * k);
+
+	cudaMemset(clusterSize, 0, sizeof(int) * k);
+
+	srand(k);
+
+    int *tmpRandList = new int[k];
+	for(int i = 0;i < k;i++){
+		int tmpRand = rand() % trainSize;
+		if(i == 0){
+			tmpRandList[i] = tmpRand;
+		}
+		for(int j = 0;j < i;j++){
+			if(tmpRand == tmpRandList[j]){
+				i--;
+				break;
+			}
+			if(j == i - 1){
+				tmpRandList[i] = tmpRand;
+			}
+		}
+	}
+
+	for(int i = 0;i < k;i++){
+		int idx = tmpRandList[i];
+		cudaMemcpy(centralPoint + i * attributesCount, trainSet[idx * attributesCount],sizeof(double) * attributesCount, cudaMemcpyHostToDevice);
+		cudaMemcpy(oldCentralPoint + i * attributesCount, trainSet[idx * attributesCount],sizeof(double) * attributesCount, cudaMemcpyHostToDevice);
+	}
+	delete [] tmpRandList;
+
 	device_trainSet = MoveTrainSetToCuda(trainSet, trainSize, attributesCount);
 
 	int blockCount = (trainSize + BLOCK_DIM - 1) / BLOCK_DIM;
@@ -257,13 +297,25 @@ cudaKmeans *getClusters(double *trainSet, int trainSize, int attributesCount, in
 	
 	cudaMalloc((void**)&device_quitFlag, sizeof(int));
 
-	firstComputeDistance<<<blockCount, BLOCK_DIM>>>(kmeans, device_trainSet, k, trainSize, attributesCount);
+	firstComputeDistance<<<blockCount, BLOCK_DIM>>>(centralPoint, pointClusterIdx, device_trainSet, k, trainSize, attributesCount);
 
 	for(;quitFlag != 0;iteration++){
-		KmeansUpdateCentralPointsAttributes<<<blockCount, BLOCK_DIM>>>(kmeans, device_trainSet, k, trainSize, attributesCount);
+		KmeansUpdateCentralPointsAttributes<<<blockCount, BLOCK_DIM>>>(centralPoint, clusterSize, pointClusterIdx, device_trainSet, k, trainSize, attributesCount);
 		cudaDeviceSynchronize();
-		KmeansGetNewCentralPoint<<<1, BLOCK_DIM>>>(kmeans, k, attributesCount);
-		compareOldAndNewCentralPoint<<<1, BLOCK_DIM>>>(kmeans, device_quitFlag, iteration, k, attributesCount);
+
+
+		KmeansGetNewCentralPoint<<<1, BLOCK_DIM>>>(centralPoint, clusterSize, k, attributesCount);
+		compareOldAndNewCentralPoint<<<1, BLOCK_DIM>>>(centralPoint, oldCentralPoint, device_quitFlag, iteration, k, attributesCount);
 		cudaMemcpy(&quitFlag, device_quitFlag, sizeof(int), cudaMemcpyDeviceToHost);
 	}
+
+	//Copy from device to host.
+
+	cudaFree(device_trainSet);
+	cudaFree(device_clusters);
+	cudaFree(pointClusterIdx);
+	cudaFree(centralPoint);
+	cudaFree(oldCentralPoint);
+	cudaFree(deive_trainSet);
+	cudaFree(device_quitFlag);
 }
