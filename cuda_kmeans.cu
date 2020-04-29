@@ -13,6 +13,7 @@
 #define ERROR_THRESHOLD 1e-4
 
 //Init a cuda kmeans
+/*
 cudaKmeans *cudaKmeansInit(int k, int attributesCount, int trainSize, double *trainSet){
 	cudaKmeans *ret = new cudaKmeans();
 
@@ -53,7 +54,7 @@ cudaKmeans *cudaKmeansInit(int k, int attributesCount, int trainSize, double *tr
 	delete [] randIdxList;
 	return ret;
 }
-
+*/
 double *MoveTrainSetToCuda(double *trainSet, int trainSize, int attributesCount){
 	double *ret;
 
@@ -296,7 +297,7 @@ __global__ void getNewClusterCenter(double *trainSet, int k, int attributesCount
 
 }
 
-const cudaKmeans & getClusters(double *trainSet, int trainSize, int attributesCount, int k){
+cudaKmeans getClusters(double *trainSet, int trainSize, int attributesCount, int k){
 	double *device_trainSet;
 	int *pointClusterIdx;
 	double *centralPoint;
@@ -360,13 +361,14 @@ const cudaKmeans & getClusters(double *trainSet, int trainSize, int attributesCo
 
 	cudaMemcpy(host_clusterSize, clusterSize, sizeof(int) * k, cudaMemcpyDeviceToHost);
 	cudaMemcpy(host_pointClusterIdx, pointClusterIdx, sizeof(int) * trainSize,  cudaMemcpyDeviceToHost);
-
-	cudaKmeans cuRet = new cudaKmeans();
-	cuRet.clusters = new clusters[k];
+	cudaKmeans cuRet;// = new cudaKmeans();
+	cuRet.clusters = new cudaCluster[k];
 
 	for(int i = 0;i < k;i++){
 		cuRet.clusters[i].attributesCount = attributesCount;
 		cuRet.clusters[i].size = host_clusterSize[i];
+                cuRet.clusters[i].centralPoint = new double[attributesCount];
+                cuRet.clusters[i].attributes = new double[attributesCount * host_clusterSize[i]];
 		cudaMemcpy(cuRet.clusters[i].centralPoint, centralPoint + i * attributesCount, sizeof(double) * attributesCount, cudaMemcpyDeviceToHost);
 	}
 
@@ -382,8 +384,9 @@ const cudaKmeans & getClusters(double *trainSet, int trainSize, int attributesCo
 
 	}
 
-	delete [] clusterSize;
+	delete [] host_clusterSize;
 	delete [] clusterIdx;
+        delete [] host_pointClusterIdx;
 
 
 	cudaFree(device_trainSet);

@@ -45,11 +45,6 @@ int main(int argc, char *argv[])
 
     double *dataTrain = getAttributesArray(data_train);
 
-
-    printf("before kmeans");
-    Kmeans kmeans = clustersInit(data_train, 8);
-
-    printf("after kmeans");
     vector<DataPoint> results = predictLables(data_test, data_train, 8, func);
 
     printf("\npredict results\n");
