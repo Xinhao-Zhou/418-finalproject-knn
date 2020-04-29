@@ -26,7 +26,6 @@ Kmeans clustersInit(vector<DataPoint> points, int k){
     vector<Cluster> clusters;
     for(int i = 0; i < k; i++){
         int r = rand() % points.size();
-
         vector<int>::iterator res = find(centralPoints.begin(), centralPoints.end(), r);
         if(res == centralPoints.end()){
             //Not replicated
@@ -57,7 +56,6 @@ Kmeans clustersInit(vector<DataPoint> points, int k){
                     minIdx = j;
                 }
             }
-            cout << "minIdx:" << minIdx << "i:" << i <<endl;
             nodeList[minIdx].push_back(points[i]);
         }
 
@@ -82,7 +80,7 @@ Kmeans clustersInit(vector<DataPoint> points, int k){
             newCenters.push_back(newCenterPoint);
             delete [] centralPointAttributes;
         }
-
+        
         //Compare new centers and old centers
         int quitFlag = 1;
         for(int i = 0; i < k;i++){
@@ -104,7 +102,6 @@ Kmeans clustersInit(vector<DataPoint> points, int k){
             break;
         }
     }
-
     Kmeans ret(k);
     ret.clusters = clusters;
 

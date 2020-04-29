@@ -1,7 +1,7 @@
 #include "knn_header.h"
 #include "knn_prep.cpp"
 #include "kmeans.cpp"
-
+#include "cuda_kmeans.h"
 int parseFunc(char *argv[]){
     int funcNumber = 0;
     if(strcmp(argv[3], "euclidean") == 0){
@@ -42,6 +42,9 @@ int main(int argc, char *argv[])
 //    }
 
     int func = parseFunc(argv);
+
+    double *dataTrain = getAttributesArray(data_train);
+
 
     printf("before kmeans");
     Kmeans kmeans = clustersInit(data_train, 8);
