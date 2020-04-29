@@ -296,16 +296,13 @@ __global__ void getNewClusterCenter(double *trainSet, int k, int attributesCount
 
 }
 
-void getClusters(double *trainSet, int trainSize, int attributesCount, int k){
+const cudaKmeans & getClusters(double *trainSet, int trainSize, int attributesCount, int k){
 	double *device_trainSet;
-	double *device_clusters;
 	int *pointClusterIdx;
 	double *centralPoint;
 	double *oldCentralPoint;
 	int *clusterSize;
 
-	cudaMalloc((void **)&device_trainSet, sizeof(double) * trainSize);
-	cudaMalloc((void **)&device_clusters, sizeof(double) * trainSize * k);
 	cudaMalloc((void **)&pointClusterIdx, sizeof(int) * trainSize);
 	cudaMalloc((void **)&centralPoint, sizeof(double) * attributesCount * k);
 	cudaMalloc((void **)&oldCentralPoint, sizeof(double) * attributesCount * k);
@@ -355,13 +352,46 @@ void getClusters(double *trainSet, int trainSize, int attributesCount, int k){
 		cudaMemcpy(&quitFlag, device_quitFlag, sizeof(int), cudaMemcpyDeviceToHost);
  getNewClusterCenter<<<blockCount, BLOCK_DIM>>>(device_trainSet, k, attributesCount, pointClusterIdx, centralPoint, trainSize);
 	}
-	//Copy from device to host.
+	//Copy from device to host..
+
+
+	int *host_clusterSize = new int[k];
+	int *host_pointClusterIdx = new int[trainSize];
+
+	cudaMemcpy(host_clusterSize, clusterSize, sizeof(int) * k, cudaMemcpyDeviceToHost);
+	cudaMemcpy(host_pointClusterIdx, pointClusterIdx, sizeof(int) * trainSize,  cudaMemcpyDeviceToHost);
+
+	cudaKmeans cuRet = new cudaKmeans();
+	cuRet.clusters = new clusters[k];
+
+	for(int i = 0;i < k;i++){
+		cuRet.clusters[i].attributesCount = attributesCount;
+		cuRet.clusters[i].size = host_clusterSize[i];
+		cudaMemcpy(cuRet.clusters[i].centralPoint, centralPoint + i * attributesCount, sizeof(double) * attributesCount, cudaMemcpyDeviceToHost);
+	}
+
+	int *clusterIdx = new int[k]();
+
+	for(int i = 0;i < trainSize;i++){
+		int idx = host_pointClusterIdx[i];
+		for(int j = 0;j < attributesCount;j++){
+			//Assign instances to clusters
+			cuRet.clusters[idx].attributes[clusterIdx[idx] * attributesCount + j] = trainSet[i * attributesCount + j];			
+		}
+		clusterIdx[idx]++;
+
+	}
+
+	delete [] clusterSize;
+	delete [] clusterIdx;
+
 
 	cudaFree(device_trainSet);
-	cudaFree(device_clusters);
 	cudaFree(pointClusterIdx);
 	cudaFree(centralPoint);
 	cudaFree(oldCentralPoint);
 	cudaFree(device_trainSet);
 	cudaFree(device_quitFlag);
+
+	return cuRet;
 }
