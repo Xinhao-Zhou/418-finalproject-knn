@@ -27,4 +27,4 @@ cudaKmeans.o:
 	$(NVCC) $(NVCC_FLAGS) -c cuda_kmeans.cu -o cudaKmeans.o
 
 clean:
-	rm -f knn knn_prep.o kmeans.o cycletimer.o
+	rm -f knn knn_prep.o kmeans.o cycletimer.o cudaKmeans.o
