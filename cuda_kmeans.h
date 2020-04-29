@@ -13,11 +13,10 @@ public:
 
 	}
 
-	double *device_attributes;
+	double *attributes;
 	int size;
 	int attributesCount;
 	double *centralPoint;//central points' attributes.
-	double *oldCentralPoint;
 
 };
 
@@ -33,6 +32,6 @@ protected:
 private:	
 };
 
-void getClusters(double *trainSet, int trainSize, int attributesCount, int k);
+cudaKmeans getClusters(double *trainSet, int trainSize, int attributesCount, int k);
 
 #endif //INC_418_FINALPROJECT_KNN_CUDA_KMEANS_H

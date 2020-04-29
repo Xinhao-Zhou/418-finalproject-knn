@@ -1,7 +1,7 @@
 DEBUG=0
 CC=g++ 
 NVCC=nvcc
-CFLAGS=-O3 -Wall -g  -std=c++11 -L/usr/local/depot/cuda-10.2/lib64/ -lcudart
+CFLAGS= -Wall -g  -std=c++11 -L/usr/local/depot/cuda-10.2/lib64/ -lcudart
 NVCC_FLAGS=-O3 -m64 --gpu-architecture compute_61 --std=c++11#-ccbin /usr/bin/$(CC) --compiler-options "-std=c++11"
 
 CFILES = main.cpp knn_prep.cpp kmeans.cpp
