@@ -2,6 +2,8 @@
 #include "knn_prep.cpp"
 #include "kmeans.cpp"
 #include "cuda_kmeans.h"
+#include "cycletimer.h"
+
 int parseFunc(char *argv[]){
     int funcNumber = 0;
     if(strcmp(argv[3], "euclidean") == 0){
@@ -45,8 +47,20 @@ int main(int argc, char *argv[])
 
     double *dataTrain = getAttributesArray(data_train);
 
-    vector<DataPoint> results = predictLables(data_test, data_train, 8, func);
+double seqkmeansStart = currentSeconds();
 
+//    Kmeans km = clustersInit(data_train, 8);
+ 
+double seqkmeansEnd = currentSeconds();
+
+double parkmeansStart = currentSeconds();
+    cudaKmeans ckmeans = getClusters(dataTrain, data_train.size(), data_train[0].attributes.size(), 8);
+double parkmeansEnd = currentSeconds();
+
+printf("sequential kmeans time: %lf\n", seqkmeansEnd - seqkmeansStart);
+printf("parallel kmeans time: %lf\n", parkmeansEnd - parkmeansStart);
+
+    vector<DataPoint> results = predictLables(data_test, data_train, 8, func);
     printf("\npredict results\n");
 
     int correctPrediction = 0;
