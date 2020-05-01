@@ -11,7 +11,7 @@ all: knn
 
 cuda: cudaKmeans.o predict.o
 
-knn: knn_prep.o kmeans.o cycletimer.o cudaKmeans.o predict.o
+knn: knn_prep.o kmeans.o cycletimer.o cudaKmeans.o predict.o cuda_knn.o
 	$(CC) $(CFLAGS) main.cpp -o knn  cudaKmeans.o cycletimer.o predict.o
 
 knn_prep.o:
@@ -25,8 +25,12 @@ cycletimer.o:
 
 cudaKmeans.o:
 	$(NVCC) $(NVCC_FLAGS) -c cuda_kmeans.cu -o cudaKmeans.o
+
+cudaKnn.o
+	$(NVCC) $(NVCC_FLAGS) -c cuda_knn.cu -o cudaKnn.o
+
 predict.o:
 	$(NVCC) $(NVCC_FLAGS) -c predict.cu -o predict.o
 
 clean:
-	rm -f knn knn_prep.o kmeans.o cycletimer.o cudaKmeans.o predict.o
+	rm -f knn knn_prep.o kmeans.o cycletimer.o cudaKmeans.o predict.o cudaKnn.o
