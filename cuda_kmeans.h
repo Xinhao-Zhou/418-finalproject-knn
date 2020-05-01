@@ -33,5 +33,6 @@ private:
 };
 
 cudaKmeans getClusters(double *trainSet, int trainSize, int attributesCount, int k);
+int *getClusterId(cudaKmeans ckmeans, double *testAttr, int testSize);
 
 #endif //INC_418_FINALPROJECT_KNN_CUDA_KMEANS_H
