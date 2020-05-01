@@ -383,7 +383,7 @@ cudaKmeans getClusters(double *trainSet, int trainSize, int attributesCount, int
                 cudaMemset(&device_quitFlag, 0, sizeof(int));
 		compareOldAndNewCentralPoint<<<1, BLOCK_DIM>>>(centralPoint, oldCentralPoint, device_quitFlag, iteration, k, attributesCount);
 		cudaMemcpy(&quitFlag, device_quitFlag, sizeof(int), cudaMemcpyDeviceToHost);
- getNewClusterCenter<<<blockCount, BLOCK_DIM>>>(device_trainSet, k, attributesCount, pointClusterIdx, centralPoint, trainSize);
+ 		getNewClusterCenter<<<blockCount, BLOCK_DIM>>>(device_trainSet, k, attributesCount, pointClusterIdx, centralPoint, trainSize);
 	}
 	//Copy from device to host..
 	int *host_clusterSize = new int[k];
@@ -429,4 +429,94 @@ printf("Time : %lf\n",testTime);
 	cudaFree(device_quitFlag);
 
 	return cuRet;
+}
+
+__global__ void assignCluster(double *centralPoint, double *testAttr, int *assignedCluster, int testSize, int k, int attributesCount){
+	__shared__ sharedCentralPoint[MAX_K * MAXATTRSIZE];
+	__shared__ sharedTestAttr[MAXATTRSIZE * BLOCK_DIM];
+
+	int testOffset = BLOCK_DIM * blockIdx.x + threadIdx.x;
+
+	if(threadIdx.x < k * attributesCount){
+		sharedCentralPoint[threadIdx.x] = centralPoint[threadIdx.x];
+	}
+
+	__syncthreads();
+
+	if(testOffset < attributesCount){
+		for(int i = 0;i < attributesCount;i++){
+			sharedTestAttr[threadIdx.x * attributesCount + i] = testAttr[testOffset * attributesCount + i];
+		}
+	}else{
+		return;
+	}
+
+	double minDistance = INFINITY;
+	int minIdx = 0;
+	for(int i = 0;i < k;i++){
+		double distance = 0.f;
+		for(int j = 0;j < attributesCount;j++){
+			distance += pow(sharedTestAttr[threadIdx.x * attributesCount + j], sharedCentralPoint[i * attributesCount + j]);
+		}
+		distance = sqrt(distance);
+		if(distance < minDistance){
+			minIdx = i;
+			minDistance = distance;
+		}
+	}
+
+	assignedCluster[testOffset] = minIdx;
+}
+
+cudaKmeans getClusterId(cudaKmeans ckmeans, double *testAttr, int testSize);{
+	double *device_centralPoints, *device_testAttr;
+	int *device_assignedCluster;
+
+	int *assignedCluster = new int[testSize];
+	int k = ckmeans.clusters.size;
+	int attributesCount = ckmeans.clusters[0].attributesCount;
+	int *testAssignedSize = new int[k]();
+
+
+	cudaMalloc(device_centralPoints, sizeof(double) * attributesCount * k);
+	cudaMalloc(devive_testAttr, sizeof(double) * attributesCount * testSize);
+	cudaMalloc(device_assignedCluster, sizeof(int) * testSize);
+
+	cudaMemcpy(device_testAttr, testAttr, sizeof(double) * attributesCount * testSize, cudaMemcpyHostToDevice);
+	for(int i = 0;i < k;i++){
+		cudaMemcpy(device_centralPoints + i * attributesCount, ckmeans.clusters[i].centralPoint, 
+			sizeof(double) * attributesCount, cudaMemcpyHostToDevice);
+	}
+
+	assignCluster<<<(testAttr + BLOCK_DIM - 1) / BLOCK_DIM, BLOCK_DIM>>>(device_centralPoints, device_testAttr, 
+		device_assignedCluster, testSize, k, attributesCount);
+
+	cudaMemcpy(assignedCluster, device_assignedCluster, sizeof(int) * testSize, cudaMemcpyDeviceToHost);
+
+	for(int i = 0;i < testSize;i++){
+		int clusterIdx = assignedCluster[i];
+		testAssignedSize[clusterIdx]++;
+	}
+
+	for(int i = 0;i < k;i++){
+		ckmeans.clusters[i].testAttr = new double[testAssignedSize[i]];
+		testAssignedSize[i] = 0;
+	}
+
+	for(int i = 0;i < testSize;i++){
+		int clusterIdx = assignedCluster[i];
+		int size = testAssignedSize[i];
+		for(int j = 0;j < attributesCount;j++){
+			ckmeans.clusters[i].testAttr[size * attributesCount + j] = testAttr[i * attributesCount + j];
+		}
+		testAssignedSize[i]++;
+	}
+
+	cudaFree(device_cetnralPoints);
+	cudaFree(device_testAttr);
+	cudaFree(device_assignedCluster);
+
+	delete [] assignedCluster;
+	delete [] testAssignedSize;
+	return ckmeans;
 }
