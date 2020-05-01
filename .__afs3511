@@ -1,0 +1,68 @@
+#include <cuda.h>
+#include <cuda_runtime.h>
+#include <driver_functions.h>
+
+#include "main.cpp"
+
+__global__ void sort_datapoint_kernel(int k, DataPoint *datapoints, DataPoint *k_ret) {
+	int index = blockIdx.x * blockDim.x + threadIdx.x;
+
+	if(index<k){
+		for(int i=0;i<datapoints[index].attributes.size();i++){
+			k_ret[index].attributes.at(i) = datapoints[index].attributes.at(i);
+		}
+		//k_ret[index] = datapoints[index];
+	}
+}
+
+
+vector<DataPoint> predictLables(vector<DataPoint> data_test, vector<DataPoint> data_train, int k, int func){
+ 
+    vector<DataPoint> results;
+
+    int test_size = data_test.size();
+    int train_len = data_train.size();
+
+    const int threadsPerBlock = 512;
+    const int blocks = (train_len + threadsPerBlock - 1) / threadsPerBlock;
+
+    //DataPoint sort_res[test_size][train_len];
+
+    DataPoint** sort_res = (DataPoint **)malloc(test_size*train_len*sizeof(DataPoint));
+    DataPoint** k_ret = (DataPoint **) malloc(test_size*train_len*sizeof(DataPoint));
+    Distance** k_dis = (Distance **) malloc(test_size*train_len*sizeof(Distance));
+
+    for(int count = 0;count<test_size;count++){
+    	DataPoint dp = data_test.at(count);
+		sort_res[count] = sort_datapoint(dp, data_train, k, func);
+	
+    }
+
+    for(int count=0;count<test_size;count++){   	
+    	k_ret[count] = getKthSmallestDatapoint(sort_res[count], k);		
+    }
+
+    DataPoint *datapoints;
+    DataPoint *k_return;
+
+    cudaMalloc(&datapoints, k*sizeof(DataPoint));
+    cudaMalloc(&k_return, k*sizeof(DataPoint));
+
+    cudaMemcpy(datapoints, sort_res, k*sizeof(DataPoint), cudaMemcpyHostToDevice);
+
+    sort_datapoint_kernel<<<blocks, threadsPerBlock>>>(k, datapoints, k_return);
+
+    cudaMemcpy(k_ret, k_return, k*sizeof(DataPoint), cudaMemcpyDeviceToHost);
+
+    for(int count = 0; count<test_size;count++){
+    	DataPoint dp = data_test.at(count);
+    	k_dis[count] = getKthSmallestDistance(k_ret[count], dp, k, func);
+		assignLabel(&dp, k_dis[count], k);
+
+       	results.push_back(dp);
+    }
+
+    return results;
+
+
+}
