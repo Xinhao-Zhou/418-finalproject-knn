@@ -2,7 +2,8 @@
 #include "knn_header.h"
 #include "knn_prep.cpp"
 #include "kmeans.cpp"
-
+#include "cuda_kmeans.h"
+#include "cuda_knn.h"
 //#include "predict.cu"
 
 int parseFunc(char *argv[]){
@@ -46,6 +47,17 @@ int main(int argc, char *argv[])
 
     int func = parseFunc(argv);
 
+    double *dataTrain = getAttributesArray(data_train);
+    double *dataTest = getAttributesArray(data_test);
+    int *labelTrain = getLabelArray(data_train);
+    int *labelTest = getLabelArray(data_test);
+
+
+    int *predictLabels = cuPredict(dataTrain, labelTrain, data_train.size(),
+			dataTest, data_test.size(), data_train[0].attributes.size(), 16);
+
+
+/*
     printf("before kmeans");
     Kmeans kmeans = clustersInit(data_train, 8);
 
@@ -58,14 +70,21 @@ int main(int argc, char *argv[])
     double accuracy = 0;
 
     //int results_size = sizeof(results)/sizeof(DataPoint);
-    for(int i = 0;i < results.size();i++){
-            if(results[i].label == data_test[i].label){
+*/
+
+    int correctPrediction = 0;
+    double accuracy = 0.f;
+    for(int i = 0;i < data_test.size();i++){
+            if(predictLabels[i] == data_test[i].label){
                 correctPrediction++;
             }
+else{
+//		printf("predict :  %d actual: %d\n", predictLabels[i], data_test[i].label);	   
+}
             //printf("test data point id: %d, predict label: %d, real label: %d\n", i, results[i].label, data_test[i].label);
         }
 
-    accuracy = static_cast<double>(correctPrediction) / results.size();
+    accuracy = static_cast<double>(correctPrediction) / data_test.size();
     printf("accuracy: %lf\n", accuracy);
 //    for(DataPoint dp : results){
 //        printf("test data point id: %d, label : %d\n", dp.id, dp.label);
