@@ -63,17 +63,16 @@ __global__ void initializeIndex(int *device_index, int trainSize, int testSize){
 	}
 }
 
-__global__ void assignLabel(double *device_distances, int *device_index, int *device_label, int *labels, int k, int testSize){
+__global__ void assignLabel(double *device_distances, int *device_index, int *device_label, int *labels, int k, int testSize ,int trainSize){
 	//k * testSize total threads
 	__shared__ int sharedLabel[MAX_K * BLOCK_DIM];
 	__shared__ int sharedSize[MAX_K * BLOCK_DIM];
 	__shared__ double sharedDistance[MAX_K * BLOCK_DIM];
 
 	int labelSize = 0;
-	int testOffset = blockDim.x * BLOCK_DIM + threadIdx.x;
+	int testOffset = blockIdx.x * BLOCK_DIM + threadIdx.x;
 
 	if(testOffset >= testSize)return;
-
 	//Load data
 	for(int i = 0;i < k;i++){
 		int idx = device_index[testOffset * trainSize + i];
@@ -90,7 +89,7 @@ __global__ void assignLabel(double *device_distances, int *device_index, int *de
 		}
 		if(containFlag != -1){
 			sharedDistance[threadIdx.x * k + containFlag] += distance;
-			sharedDistance[threadIdx.x * k + containFlag] += 1;
+			sharedSize[threadIdx.x * k + containFlag] += 1;
 		}else{
 			sharedLabel[threadIdx.x * k + labelSize] = newLabel;
 			sharedDistance[threadIdx.x * k + labelSize] = distance;
@@ -99,13 +98,22 @@ __global__ void assignLabel(double *device_distances, int *device_index, int *de
 		}
 	}
 
+        if(testOffset == 2000){
+             for(int i = 0;i < labelSize;i++){
+		printf("distance total: %lf, size: %d\n", sharedDistance[threadIdx.x * k + i], sharedSize[threadIdx.x * k + i]);
+	     }
+        
+}
 	double minDistance = INFINITY;
+        int maxSize = 0;
 	int minlabel = -1;
 	for(int i = 0;i < labelSize;i++){
 		int offset = threadIdx.x * k + i;
-		double averageDistance = sharedDistance[offset] / sharedSize[offset];
-		if(averageDistance < minDistance){
-			minDistance = averageDistance;
+//		double averageDistance = sharedDistance[offset] / static_cast<double>(sharedSize[offset]);
+		int size = sharedSize[offset];
+		if(size > maxSize){
+			//minDistance = averageDistance;
+			maxSize = size;
 			minlabel = sharedLabel[offset];
 		}
 	}
@@ -115,7 +123,10 @@ __global__ void assignLabel(double *device_distances, int *device_index, int *de
 
 int *cuPredict(double *trainAttr, int* trainLabels, int trainSize, 
 	double *testAttr, int testSize, int attrSize, int k){
-	double *device_trainAttr, *device_testAttr, *device_trainLabels, *device_distances, device_testLabels;
+	double *device_trainAttr, *device_testAttr, *device_distances;
+
+        int *device_trainLabels;
+	int *device_testLabels;
 	int *device_index;
 
 	cudaMalloc((void **)&device_trainAttr, sizeof(double) * trainSize * attrSize);
@@ -158,9 +169,9 @@ int *cuPredict(double *trainAttr, int* trainLabels, int trainSize,
 	//cudaMemcpy(h_distances, device_distances, sizeof(double) * trainSize * testSize, cudaMemcpyDeviceToHost);
 
 
-	int *retLabel = new int[testSize];
+	int *retLabels = new int[testSize];
 	assignLabel<<<(testSize + BLOCK_DIM - 1 / BLOCK_DIM), BLOCK_DIM>>>(device_distances, device_index, 
-		device_trainLabels, device_testLabels, testSize);
+		device_trainLabels, device_testLabels, k, testSize, trainSize);
 
 	cudaMemcpy(retLabels, device_testLabels, sizeof(int) * testSize, cudaMemcpyDeviceToHost);
 
@@ -178,6 +189,9 @@ int *cuPredict(double *trainAttr, int* trainLabels, int trainSize,
 	cudaFree(device_trainAttr);
 	cudaFree(device_testAttr);
 	cudaFree(device_trainLabels);
+
+	cudaError_t err = cudaPeekAtLastError();
+        printf("%s\n", cudaGetErrorName(err));
 
 	return retLabels;
 	//Get distance
