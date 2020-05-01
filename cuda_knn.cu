@@ -28,8 +28,8 @@ __global__ void kernelComputeDistance(double *trainAttr, double *testAttr,
 	int trainOffset = blockDim.x * blockIdx.x;
 	int testOffset = blockDim.y * blockIdx.y;
 
-	trainOffset += trainOffset;
-	testOffset += testOffset;
+	trainOffset += threadIdx.x;
+	testOffset += threadIdx.y;
 
 	//Each thread compute a distance of x to y.
 
@@ -41,22 +41,23 @@ __global__ void kernelComputeDistance(double *trainAttr, double *testAttr,
     	for(int i = 0;i < attrSize;i++){
     		double trainAttribute = trainAttr[trainOffset * attrSize + i];
 
-			double testAttribute = testAttr[testOffset * attrSize + i];
-			distance += pow(trainAttribute - testAttribute, 2);
+		double testAttribute = testAttr[testOffset * attrSize + i];
+		distance += pow(trainAttribute - testAttribute, 2);
 		}
-		device_distances[testOffset * trainSize + trainOffset] = distance;
+		device_distances[testOffset * trainSize + trainOffset] = sqrt(distance);
 	}
 }
 
 
-__global__ void initializeIndex(int *device_index, int trainSize){
+__global__ void initializeIndex(int *device_index, int trainSize, int testSize){
 	int testOffset = blockDim.y * blockIdx.y;
 	int trainOffset = blockDim.x * blockIdx.x;
 
 	testOffset += threadIdx.y;
 	trainOffset += threadIdx.x;
-
-	device_index[testOffset * trainSize + trainOffset] = trainOffset;
+	if(trainOffset < trainSize && testOffset < testSize){
+		device_index[testOffset * trainSize + trainOffset] = trainOffset;
+	}
 }
 int *cuPredict(double *trainAttr, int* trainLabels, int trainSize, 
 	double *testAttr, int testSize, int attrSize, int k){
@@ -76,14 +77,14 @@ int *cuPredict(double *trainAttr, int* trainLabels, int trainSize,
 	int blockdimY = (testSize + TEST_SIZE - 1) / TEST_SIZE;
 	int blockdimX = (trainSize + TRAIN_SIZE - 1) / TRAIN_SIZE;
 
-	dim3 gridDim(blockdimX, blockdimY, 1);
-	dim3 blockDim(TRAIN_SIZE, TEST_SIZE, 1); 
+	dim3 gridDim(blockdimX, blockdimY);
+	dim3 blockDim(TRAIN_SIZE, TEST_SIZE); 
 
 
 	kernelComputeDistance<<<gridDim, blockDim>>>(device_trainAttr, device_testAttr, 
 		device_distances, trainSize,testSize, attrSize);
 
-	initializeIndex<<<gridDim, blockDim>>>(device_index, trainSize);
+	initializeIndex<<<gridDim, blockDim>>>(device_index, trainSize,testSize);
 	cudaDeviceSynchronize();
 
         thrust::device_ptr<double> keys(device_distances);
@@ -100,6 +101,10 @@ int *cuPredict(double *trainAttr, int* trainLabels, int trainSize,
         device_distances = thrust::raw_pointer_cast(keys);
 	cudaMemcpy(h_distances, device_distances, sizeof(double) * trainSize * testSize, cudaMemcpyDeviceToHost);
 
+        for(int i = 0;i < attrSize;i++){
+//		printf("attr: %lf\n", testAttr[i]);
+
+	}
 	for(int i = 0;i < trainSize;i++){
 		printf("%lf\n",h_distances[i]);
 	}	
