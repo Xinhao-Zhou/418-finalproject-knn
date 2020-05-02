@@ -1,10 +1,31 @@
+rm -f knn knn_prep.o kmeans.o cycletimer.o cudaKmeans.o predict.o cudaKnn.o
+g++  -O3 -Wall -g  -std=c++11 -L/usr/local/depot/cuda-10.2/lib64/ -lcudart -c knn_prep.cpp -o knn_prep.o
+g++  -O3 -Wall -g  -std=c++11 -L/usr/local/depot/cuda-10.2/lib64/ -lcudart -c kmeans.cpp -o kmeans.o
+g++  -O3 -Wall -g  -std=c++11 -L/usr/local/depot/cuda-10.2/lib64/ -lcudart -c cycletimer.c -o cycletimer.o
+nvcc -O3 -m64 --gpu-architecture compute_61 --std=c++11 -c cuda_kmeans.cu -o cudaKmeans.o
+nvcc -O3 -m64 --gpu-architecture compute_61 --std=c++11 -c predict.cu -o predict.o
+nvcc -O3 -m64 --gpu-architecture compute_61 --std=c++11 -c cuda_knn.cu -o cudaKnn.o
+g++  -O3 -Wall -g  -std=c++11 -L/usr/local/depot/cuda-10.2/lib64/ -lcudart main.cpp -o knn  cudaKmeans.o cycletimer.o predict.o cudaKnn.o kmeans.o
 Hello world!
 train data
 test data
-sequential kmeans time: 0.241630
-parallel kmeans time: 0.025567
-cudaSuccess
-distance total: 7.818056, size: 13
-distance total: 1.643157, size: 3
-parallel knn time: 0.147232
-correct: 1911 accuracy : 0.746193
+sequential kmeans time: 0.063106
+parallel kmeans time: 0.007754
+0 attr: 0.159621
+0 attr: 0.125675
+0 attr: 0.564517
+0 attr: 0.003681
+0 attr: 0.012159
+0 attr: 0.384822
+1 attr: 0.453410
+1 attr: 0.114586
+1 attr: 0.652618
+1 attr: 0.019308
+1 attr: 0.028847
+1 attr: 0.422714
+size: 16248 : 0
+size: 13751 : 2561
+parallel kmeans + knn time: 0.855015
+correct: 2054 accuracy : 0.802030
+sequential knn time: 0.985270
+sequential knn accuracy: 0.805545

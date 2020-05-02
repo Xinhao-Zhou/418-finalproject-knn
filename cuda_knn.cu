@@ -98,12 +98,8 @@ __global__ void assignLabel(double *device_distances, int *device_index, int *de
 		}
 	}
 
-        if(testOffset == 2000){
-             for(int i = 0;i < labelSize;i++){
-		printf("distance total: %lf, size: %d\n", sharedDistance[threadIdx.x * k + i], sharedSize[threadIdx.x * k + i]);
-	     }
         
-}
+
 	double minDistance = INFINITY;
         int maxSize = 0;
 	int minlabel = -1;
@@ -129,6 +125,7 @@ int *cuPredict(double *trainAttr, int* trainLabels, int trainSize,
 	int *device_testLabels;
 	int *device_index;
 
+
 	cudaMalloc((void **)&device_trainAttr, sizeof(double) * trainSize * attrSize);
 	cudaMalloc((void **)&device_trainLabels, sizeof(int) * trainSize);
 	cudaMalloc((void **)&device_index, sizeof(int) * trainSize * testSize);
@@ -146,7 +143,6 @@ int *cuPredict(double *trainAttr, int* trainLabels, int trainSize,
 	dim3 gridDim(blockdimX, blockdimY);
 	dim3 blockDim(TRAIN_SIZE, TEST_SIZE); 
 
-
 	kernelComputeDistance<<<gridDim, blockDim>>>(device_trainAttr, device_testAttr, 
 		device_distances, trainSize,testSize, attrSize);
 
@@ -160,6 +156,7 @@ int *cuPredict(double *trainAttr, int* trainLabels, int trainSize,
 //                 printf("here!\n");
 		thrust::sort_by_key(keys + i * trainSize, keys + (i + 1) * trainSize, vals + i * trainSize);		
 	}
+
 
 	// double *h_distances = new double[trainSize * testSize];
 	// int *h_idx = new int[trainSize * testSize];
@@ -175,6 +172,7 @@ int *cuPredict(double *trainAttr, int* trainLabels, int trainSize,
 
 	cudaMemcpy(retLabels, device_testLabels, sizeof(int) * testSize, cudaMemcpyDeviceToHost);
 
+
 //         for(int i = 0;i < attrSize;i++){
 // //		printf("attr: %lf\n", testAttr[i]);
 
@@ -189,7 +187,6 @@ int *cuPredict(double *trainAttr, int* trainLabels, int trainSize,
 	cudaFree(device_trainAttr);
 	cudaFree(device_testAttr);
 	cudaFree(device_trainLabels);
-
 
 	return retLabels;
 	//Get distance

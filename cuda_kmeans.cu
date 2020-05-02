@@ -320,7 +320,6 @@ __host__ int compareOldAndNewCentralPoint(double *centralPoint, double *oldCentr
 			distance += pow(centralPoint[i * attributesCount + j] - oldCentralPoint[i * attributesCount + j], 2);
 		}
 		distance = sqrt(distance);
-		printf("distance: %lf\n",distance);
 		if(distance > ERROR_THRESHOLD){
 			return 1;
 		}
@@ -469,8 +468,6 @@ cudaKmeans getClusters(double *trainSet, int trainSize, int *labelTrain, int att
 	double endTime = currentSeconds();
 
 	printf("parallel kmeans time: %lf\n", endTime - startTime);
-        cudaError_t err = cudaPeekAtLastError();
-        printf("%s\n", cudaGetErrorName(err));
 
 	return cuRet;
 }
@@ -487,7 +484,7 @@ __global__ void assignCluster(double *centralPoint, double *testAttr, int *assig
 
 	__syncthreads();
 
-	if(testOffset < attributesCount){
+	if(testOffset < testSize){
 		for(int i = 0;i < attributesCount;i++){
 			sharedTestAttr[threadIdx.x * attributesCount + i] = testAttr[testOffset * attributesCount + i];
 		}
@@ -500,15 +497,15 @@ __global__ void assignCluster(double *centralPoint, double *testAttr, int *assig
 	for(int i = 0;i < k;i++){
 		double distance = 0.f;
 		for(int j = 0;j < attributesCount;j++){
-			distance += pow(sharedTestAttr[threadIdx.x * attributesCount + j], sharedCentralPoint[i * attributesCount + j]);
+			distance += pow(sharedTestAttr[threadIdx.x * attributesCount + j] - sharedCentralPoint[i * attributesCount + j],2);
 		}
 		distance = sqrt(distance);
+                //printf("%d clus: %d distance: %lf\n",testOffset, i, distance);
 		if(distance < minDistance){
 			minIdx = i;
 			minDistance = distance;
 		}
 	}
-
 	assignedCluster[testOffset] = minIdx;
 }
 
@@ -546,6 +543,7 @@ cudaKmeans getClusterId(cudaKmeans ckmeans, double *testAttr, int testSize,int k
 		ckmeans.clusters[i].testAttr = new double[testAssignedSize[i] * attributesCount];
 		ckmeans.clusters[i].testLabel = new int[testAssignedSize[i]];
 		ckmeans.clusters[i].testSize = testAssignedSize[i];
+
 		testAssignedSize[i] = 0;
 	}
 
@@ -568,5 +566,8 @@ cudaKmeans getClusterId(cudaKmeans ckmeans, double *testAttr, int testSize,int k
 
 	delete [] assignedCluster;
 	delete [] testAssignedSize;
+
 	return ckmeans;
 }
+
+
