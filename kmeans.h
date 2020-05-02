@@ -8,7 +8,7 @@
 #define DEFAULT_K 8
 #define MAX_ITERATION 300
 #define EUCLIDEAN 0
-#define CONVERGE_THRESHOLD 1e-4
+#define CONVERGE_THRESHOLD 0.01
 #include "knn_header.h"
 class Cluster{
 public:

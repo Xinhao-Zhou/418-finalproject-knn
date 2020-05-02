@@ -10,7 +10,7 @@
 #define MAXATTRSIZE 8
 #define MAX_K 32
 #define ITERATION_THRESHOLD 300
-#define ERROR_THRESHOLD 0.5f
+#define ERROR_THRESHOLD 0.01f
 
 //Init a cuda kmeans
 /*
@@ -275,7 +275,7 @@ __global__ void compareOldAndNewCentralPoint(double *centralPoint, double *oldCe
 
 }
 
-__global__ void getNewClusterCenter(double *trainSet, int k, int attributesCount, int* pointClusterIdx, double *centralPoint, int trainSize){
+__global__ void getNewClusterCenter(double *trainSet, int k, int attributesCount, int* pointClusterIdx, double *centralPoint, int trainSize, int *clusterSize){
     __shared__ double centralPoints[MAX_K * MAXATTRSIZE];
     __shared__ double attributes[BLOCK_DIM * MAXATTRSIZE];
     int pointIdx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -304,11 +304,34 @@ __global__ void getNewClusterCenter(double *trainSet, int k, int attributesCount
     }
 
     pointClusterIdx[pointIdx] = minIdx;
+    atomicAdd(&(clusterSize[minIdx]),1);
     }
 
 }
 
-cudaKmeans getClusters(double *trainSet, int trainSize, int attributesCount, int k){
+__global__ void setQuitFlag(int *quitFlag){
+	*quitFlag = 0;
+}
+
+__host__ int compareOldAndNewCentralPoint(double *centralPoint, double *oldCentralPoint, int k, int attributesCount){
+	for(int i = 0;i < k;i++){
+		double distance = 0.f;
+		for(int j = 0;j < attributesCount;j++){
+			distance += pow(centralPoint[i * attributesCount + j] - oldCentralPoint[i * attributesCount + j], 2);
+		}
+		distance = sqrt(distance);
+		printf("distance: %lf\n",distance);
+		if(distance > ERROR_THRESHOLD){
+			return 1;
+		}
+	}
+	return 0;
+}
+
+cudaKmeans getClusters(double *trainSet, int trainSize, int *labelTrain, int attributesCount, int k){
+
+
+
 	double *device_trainSet;
 	int *pointClusterIdx;
 	double *centralPoint;
@@ -327,6 +350,9 @@ cudaKmeans getClusters(double *trainSet, int trainSize, int attributesCount, int
 	cudaMemset(clusterSize, 0, sizeof(int) * k);
 	srand(k);
 
+
+	double *host_centralPoint = new double[k * attributesCount];
+	double *host_oldCentralPoint = new double[k * attributesCount];
 
     double startTime = currentSeconds();
 
@@ -358,39 +384,52 @@ cudaKmeans getClusters(double *trainSet, int trainSize, int attributesCount, int
 
 	int blockCount = (trainSize + BLOCK_DIM - 1) / BLOCK_DIM;
 
-	int *device_quitFlag, quitFlag;
+	int *device_quitFlag;
 	int iteration = 0;
+	int quitFlag;
 	quitFlag = 1;
 	
 	cudaMalloc((void**)&device_quitFlag, sizeof(int));
 
-
 	firstComputeDistance<<<blockCount, BLOCK_DIM>>>(centralPoint, pointClusterIdx, device_trainSet, k, trainSize, attributesCount);
 
 	for(;quitFlag > 0 && iteration < ITERATION_THRESHOLD;iteration++){
+
 		cudaMemset(centralPoint, 0, sizeof(double) * k * attributesCount);
                 cudaMemset(clusterSize, 0, sizeof(int) * k);
 
-                double tStartTime = currentSeconds();
+
 		KmeansUpdateCentralPointsAttributes<<<blockCount, BLOCK_DIM>>>(iteration,centralPoint, clusterSize, pointClusterIdx, device_trainSet, k, trainSize, attributesCount);
 
+
 		cudaDeviceSynchronize();
-                testTime += currentSeconds() - tStartTime;
 
 		KmeansGetNewCentralPoint<<<1, BLOCK_DIM>>>(centralPoint, clusterSize, k, attributesCount);
 
 		cudaDeviceSynchronize();
-                cudaMemset(&device_quitFlag, 0, sizeof(int));
+
+                cudaMemset(device_quitFlag, 0, sizeof(int));
+
 		compareOldAndNewCentralPoint<<<1, BLOCK_DIM>>>(centralPoint, oldCentralPoint, device_quitFlag, iteration, k, attributesCount);
 		cudaMemcpy(&quitFlag, device_quitFlag, sizeof(int), cudaMemcpyDeviceToHost);
- 		getNewClusterCenter<<<blockCount, BLOCK_DIM>>>(device_trainSet, k, attributesCount, pointClusterIdx, centralPoint, trainSize);
+		cudaMemset(clusterSize, 0, sizeof(int) * k);
+ 		getNewClusterCenter<<<blockCount, BLOCK_DIM>>>(device_trainSet, k, attributesCount, pointClusterIdx, centralPoint, trainSize, clusterSize);
+		cudaDeviceSynchronize();
+
 	}
+
 	//Copy from device to host..
+
+
 	int *host_clusterSize = new int[k];
+
 	int *host_pointClusterIdx = new int[trainSize];
+
+
 
 	cudaMemcpy(host_clusterSize, clusterSize, sizeof(int) * k, cudaMemcpyDeviceToHost);
 	cudaMemcpy(host_pointClusterIdx, pointClusterIdx, sizeof(int) * trainSize,  cudaMemcpyDeviceToHost);
+
 	cudaKmeans cuRet;// = new cudaKmeans();
 	cuRet.clusters = new cudaCluster[k];
 
@@ -399,6 +438,7 @@ cudaKmeans getClusters(double *trainSet, int trainSize, int attributesCount, int
 		cuRet.clusters[i].size = host_clusterSize[i];
                 cuRet.clusters[i].centralPoint = new double[attributesCount];
                 cuRet.clusters[i].attributes = new double[attributesCount * host_clusterSize[i]];
+		cuRet.clusters[i].trainLabel = new int[host_clusterSize[i]];
 		cudaMemcpy(cuRet.clusters[i].centralPoint, centralPoint + i * attributesCount, sizeof(double) * attributesCount, cudaMemcpyDeviceToHost);
 	}
 
@@ -409,31 +449,35 @@ cudaKmeans getClusters(double *trainSet, int trainSize, int attributesCount, int
 			//Assign instances to clusters
 			cuRet.clusters[idx].attributes[clusterIdx[idx] * attributesCount + j] = trainSet[i * attributesCount + j];			
 		}
+		cuRet.clusters[idx].trainLabel[clusterIdx[idx]] = labelTrain[i];
 		clusterIdx[idx]++;
 	}
 
-        double endTime = currentSeconds();
-printf("iteration: %d\n",iteration);        
-printf("Time : %lf\n",testTime);
-        printf("TotalTime :%lf\n",endTime - startTime);
+
 	delete [] host_clusterSize;
 	delete [] clusterIdx;
         delete [] host_pointClusterIdx;
 
-
+/*
 	cudaFree(device_trainSet);
 	cudaFree(pointClusterIdx);
 	cudaFree(centralPoint);
 	cudaFree(oldCentralPoint);
 	cudaFree(device_trainSet);
 	cudaFree(device_quitFlag);
+*/
+	double endTime = currentSeconds();
+
+	printf("parallel kmeans time: %lf\n", endTime - startTime);
+        cudaError_t err = cudaPeekAtLastError();
+        printf("%s\n", cudaGetErrorName(err));
 
 	return cuRet;
 }
 
 __global__ void assignCluster(double *centralPoint, double *testAttr, int *assignedCluster, int testSize, int k, int attributesCount){
-	__shared__ sharedCentralPoint[MAX_K * MAXATTRSIZE];
-	__shared__ sharedTestAttr[MAXATTRSIZE * BLOCK_DIM];
+	__shared__ double sharedCentralPoint[MAX_K * MAXATTRSIZE];
+	__shared__ double sharedTestAttr[MAXATTRSIZE * BLOCK_DIM];
 
 	int testOffset = BLOCK_DIM * blockIdx.x + threadIdx.x;
 
@@ -468,53 +512,59 @@ __global__ void assignCluster(double *centralPoint, double *testAttr, int *assig
 	assignedCluster[testOffset] = minIdx;
 }
 
-cudaKmeans getClusterId(cudaKmeans ckmeans, double *testAttr, int testSize);{
+cudaKmeans getClusterId(cudaKmeans ckmeans, double *testAttr, int testSize,int k, int *testLabel){
+
 	double *device_centralPoints, *device_testAttr;
 	int *device_assignedCluster;
 
 	int *assignedCluster = new int[testSize];
-	int k = ckmeans.clusters.size;
 	int attributesCount = ckmeans.clusters[0].attributesCount;
 	int *testAssignedSize = new int[k]();
 
-
-	cudaMalloc(device_centralPoints, sizeof(double) * attributesCount * k);
-	cudaMalloc(devive_testAttr, sizeof(double) * attributesCount * testSize);
-	cudaMalloc(device_assignedCluster, sizeof(int) * testSize);
+	cudaMalloc((void**)&device_centralPoints, sizeof(double) * attributesCount * k);
+	cudaMalloc((void**)&device_testAttr, sizeof(double) * attributesCount * testSize);
+	cudaMalloc((void**)&device_assignedCluster, sizeof(int) * testSize);
 
 	cudaMemcpy(device_testAttr, testAttr, sizeof(double) * attributesCount * testSize, cudaMemcpyHostToDevice);
+
 	for(int i = 0;i < k;i++){
 		cudaMemcpy(device_centralPoints + i * attributesCount, ckmeans.clusters[i].centralPoint, 
 			sizeof(double) * attributesCount, cudaMemcpyHostToDevice);
 	}
 
-	assignCluster<<<(testAttr + BLOCK_DIM - 1) / BLOCK_DIM, BLOCK_DIM>>>(device_centralPoints, device_testAttr, 
+	assignCluster<<<(testSize + BLOCK_DIM - 1) / BLOCK_DIM, BLOCK_DIM>>>(device_centralPoints, device_testAttr, 
 		device_assignedCluster, testSize, k, attributesCount);
 
 	cudaMemcpy(assignedCluster, device_assignedCluster, sizeof(int) * testSize, cudaMemcpyDeviceToHost);
+
 
 	for(int i = 0;i < testSize;i++){
 		int clusterIdx = assignedCluster[i];
 		testAssignedSize[clusterIdx]++;
 	}
-
 	for(int i = 0;i < k;i++){
-		ckmeans.clusters[i].testAttr = new double[testAssignedSize[i]];
+		ckmeans.clusters[i].testAttr = new double[testAssignedSize[i] * attributesCount];
+		ckmeans.clusters[i].testLabel = new int[testAssignedSize[i]];
+		ckmeans.clusters[i].testSize = testAssignedSize[i];
 		testAssignedSize[i] = 0;
 	}
 
+
 	for(int i = 0;i < testSize;i++){
 		int clusterIdx = assignedCluster[i];
-		int size = testAssignedSize[i];
+		int size = testAssignedSize[clusterIdx];
 		for(int j = 0;j < attributesCount;j++){
-			ckmeans.clusters[i].testAttr[size * attributesCount + j] = testAttr[i * attributesCount + j];
+			ckmeans.clusters[clusterIdx].testAttr[size * attributesCount + j] = testAttr[i * attributesCount + j];
 		}
-		testAssignedSize[i]++;
+		ckmeans.clusters[clusterIdx].testLabel[testAssignedSize[clusterIdx]] = testLabel[i];
+		testAssignedSize[clusterIdx]++;
 	}
 
-	cudaFree(device_cetnralPoints);
+
+	cudaFree(device_centralPoints);
 	cudaFree(device_testAttr);
 	cudaFree(device_assignedCluster);
+
 
 	delete [] assignedCluster;
 	delete [] testAssignedSize;

@@ -190,8 +190,6 @@ int *cuPredict(double *trainAttr, int* trainLabels, int trainSize,
 	cudaFree(device_testAttr);
 	cudaFree(device_trainLabels);
 
-	cudaError_t err = cudaPeekAtLastError();
-        printf("%s\n", cudaGetErrorName(err));
 
 	return retLabels;
 	//Get distance

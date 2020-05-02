@@ -14,10 +14,14 @@ public:
 	}
 
 	double *attributes;
+	int *trainLabel;
 	int size;
 	int attributesCount;
 	double *centralPoint;//central points' attributes.
 
+	double *testAttr;
+	int *testLabel;
+	int testSize;
 };
 
 class cudaKmeans{
@@ -32,7 +36,7 @@ protected:
 private:	
 };
 
-cudaKmeans getClusters(double *trainSet, int trainSize, int attributesCount, int k);
-int *getClusterId(cudaKmeans ckmeans, double *testAttr, int testSize);
+cudaKmeans getClusters(double *trainSet, int trainSize, int* trainLabel, int attributesCount, int k);
+cudaKmeans getClusterId(cudaKmeans ckmeans, double *testAttr, int testSize, int k, int *labelTest);
 
 #endif //INC_418_FINALPROJECT_KNN_CUDA_KMEANS_H

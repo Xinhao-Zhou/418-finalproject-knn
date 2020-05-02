@@ -12,7 +12,7 @@ all: knn
 cuda: cudaKmeans.o predict.o
 
 knn: knn_prep.o kmeans.o cycletimer.o cudaKmeans.o predict.o cudaKnn.o
-	$(CC) $(CFLAGS) main.cpp -o knn  cudaKmeans.o cycletimer.o predict.o cudaKnn.o
+	$(CC) $(CFLAGS) main.cpp -o knn  cudaKmeans.o cycletimer.o predict.o cudaKnn.o kmeans.o
 
 knn_prep.o:
 	$(CC) $(CFLAGS) -c knn_prep.cpp -o knn_prep.o

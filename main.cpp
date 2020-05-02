@@ -1,9 +1,10 @@
 
 #include "knn_header.h"
 #include "knn_prep.cpp"
-#include "kmeans.cpp"
+#include "kmeans.h"
 #include "cuda_kmeans.h"
 #include "cuda_knn.h"
+#include "cycletimer.h"
 //#include "predict.cu"
 
 int parseFunc(char *argv[]){
@@ -47,16 +48,52 @@ int main(int argc, char *argv[])
 
     int func = parseFunc(argv);
 
+    
+
+
     double *dataTrain = getAttributesArray(data_train);
     double *dataTest = getAttributesArray(data_test);
     int *labelTrain = getLabelArray(data_train);
     int *labelTest = getLabelArray(data_test);
 
+    double seqStart = currentSeconds();
+    clustersInit(data_train, 8);
+    double seqEnd = currentSeconds();
+    printf("sequential kmeans time: %lf\n",seqEnd - seqStart);
+    cudaKmeans ckmeans = getClusters(dataTrain, data_train.size(), labelTrain, data_train[0].attributes.size(), 8);
 
+
+    ckmeans = getClusterId(ckmeans, dataTest, data_test.size(),8, labelTest);    
+
+//    double parKnnStart = currentSeconds();
+    int correctPrediction = 0;
+
+/*
+    for(int i = 0;i < 8;i++){
+	int *predictLabels = cuPredict(ckmeans.clusters[i].attributes, ckmeans.clusters[i].trainLabel,ckmeans.clusters[i].size,
+		ckmeans.clusters[i].testAttr,ckmeans.clusters[i].testSize,data_train[0].attributes.size(), 16);
+ 
+	for(int j = 0;j < ckmeans.clusters[i].testSize;j++){
+		if(predictLabels[j] == ckmeans.clusters[i].testLabel[j])correctPrediction++;
+	}  
+    }
+    double parKnnEnd = currentSeconds();
+    double acc = (double)correctPrediction / (double)data_test.size();
+
+    printf("parallel kmeans + knn time: %lf\n", parKnnEnd - parKnnStart);
+    printf("correct: %d accuracy : %lf\n", correctPrediction, acc);
+*/
+    double parKnnStart = currentSeconds();
+
+    cuPredict(dataTrain, labelTrain, data_train.size(), dataTest, data_test.size(), data_train[0].attributes.size(), 16);
+    double parKnnEnd = currentSeconds();
+
+    printf("parallel knn time: %lf\n", parKnnEnd - parKnnStart);
+/*
     int *predictLabels = cuPredict(dataTrain, labelTrain, data_train.size(),
 			dataTest, data_test.size(), data_train[0].attributes.size(), 16);
 
-
+*/
 /*
     printf("before kmeans");
     Kmeans kmeans = clustersInit(data_train, 8);
@@ -72,6 +109,7 @@ int main(int argc, char *argv[])
     //int results_size = sizeof(results)/sizeof(DataPoint);
 */
 
+/*
     int correctPrediction = 0;
     double accuracy = 0.f;
     for(int i = 0;i < data_test.size();i++){
@@ -89,7 +127,7 @@ else{
 //    for(DataPoint dp : results){
 //        printf("test data point id: %d, label : %d\n", dp.id, dp.label);
 //    }
-
+*/
     return 0;
 }
 
