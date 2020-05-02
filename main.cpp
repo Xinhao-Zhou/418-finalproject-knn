@@ -88,7 +88,7 @@ int main(int argc, char *argv[])
 
 	double tmpEnd = currentSeconds();
         parKnnTime += tmpEnd - tmpStart;
-
+        printf("knn time : %lf\n", tmpEnd - tmpStart);
 	for(int j = 0;j < ckmeans.clusters[i].testSize;j++){
 		if(predictLabels[j] == ckmeans.clusters[i].testLabel[j])correctPrediction++;
 	}  
