@@ -21,6 +21,19 @@ int parseFunc(char *argv[]){
     return funcNumber;
 }
 
+int benchmark_mode(char *argv[]){
+    int benchmark_mode = 0;
+    if(strcmp(argv[4], "sequential") == 0){
+        benchmark_mode = 0;
+    }else if(strcmp(argv[4], "parallel") == 0){
+        benchmark_mode = 1;
+    }else{
+        benchmark_mode = 1;
+    }
+    return benchmark_mode;
+}
+
+
 int main(int argc, char *argv[])
 {
     cout << "Hello world!" << endl;
@@ -28,7 +41,7 @@ int main(int argc, char *argv[])
     printf("train data\n");
 
     if(argc < 4){
-        printf("We need [train data set] [test data set] [distance function]\n");
+        printf("We need [train data set] [test data set] [distance function] [mode]\n");
         return -1;
     }
 
@@ -57,7 +70,10 @@ int main(int argc, char *argv[])
     int *labelTrain = getLabelArray(data_train);
     int *labelTest = getLabelArray(data_test);
 
-    double seqStart = currentSeconds();
+    int mode = benchmark_mode(argv);
+    
+    if(mode == 1){
+        double seqStart = currentSeconds();
     clustersInit(data_train, 8);
     double seqEnd = currentSeconds();
     printf("sequential kmeans time: %lf\n",seqEnd - seqStart);
@@ -129,7 +145,22 @@ double basicKnnEnd = currentSeconds();
     printf("parallel kmeans + knn time: %lf\n", parKnnEnd - parKnnStart);
     printf("parallel correct: %d accuracy : %lf\n", correctPrediction, acc);
     printf("parallel knn time: %lf\n",basicKnnEnd - basicKnnStart);
+    }
 
+    if(mode==0){
+        printf("%s\n", "baseline sequential");
+        double tmpStart = currentSeconds();
+        vector<DataPoint> results = predictLables_seq(data_test, data_train, 16, func);
+        double tmpEnd = currentSeconds();
+        int correctPrediction = 0;
+
+        for(int i = 0;i < data_test.size();i++){
+            if(results[i].label == labelTest[i])correctPrediction++;
+        }
+        double acc = (double)correctPrediction / (double)data_test.size();
+        printf("baseline sequential correct: %d accuracy: %lf\n", correctPrediction, acc);
+        printf("baseline sequential time: %lf\n",tmpEnd-tmpStart);
+    }
 
 
  //    double seqKnnStart = currentSeconds();
@@ -402,6 +433,83 @@ double *getKthSmallestDatapoint_Attributes(double *attributes, int attribute_len
     }
     return new_attributes;
 }
+
+
+vector<DataPoint> predictLables_seq(vector<DataPoint> data_test, vector<DataPoint> data_train, int k, int func){
+        vector<DataPoint> results;
+    for(DataPoint test_dp : data_test){
+
+
+     int len = data_train.size();
+
+     DataPoint *ret = new DataPoint[len];
+
+     ret = sort_datapoint(test_dp, data_train, k, func);
+
+     DataPoint *k_ret = new DataPoint[k];
+
+     k_ret = getKthSmallestDatapoint(ret, k);
+
+     Distance *k_dis = new Distance[k];
+
+     k_dis = getKthSmallestDistance(k_ret, test_dp, k, func);
+
+     assignLabel_seq(&test_dp, k_dis, k);
+
+         results.push_back(test_dp);
+    }
+    return results;
+
+
+}
+
+void assignLabel_seq(DataPoint *target_datapoint, Distance *distances, int k){
+    //printf("assign labels");
+//    malloc and initialize
+
+    char *dis_map_keys = new char[k];
+    for(int i=0;i<k;i++){
+        dis_map_keys[i] = '#';
+    }
+    double *dis_map_values = new double[k];
+    for(int i=0; i<k;i++){
+        dis_map_values[i] = 0;
+    }
+
+    //assign values
+    for(int i=0;i<k;i++){
+    	//printf("%f\n", distances[i].distance);
+        char ds_char = distances[i].dest_datapoint.label;
+       // printf("label: %c\n", ds_char);
+        //double ds_ds = distances[i].distance;
+        bool contained = false;
+        for(int j=0;j<i;j++){
+        	if(distances[j].dest_datapoint.label==ds_char){
+        		dis_map_values[j] ++;
+        		contained = true;
+        	}
+        }
+        if(!contained){
+        	dis_map_keys[i] = ds_char;
+        	dis_map_values[i] += 1;
+        }
+
+    }
+
+    //get the smallest values
+    char final_label = dis_map_keys[0];
+    double final_distance = dis_map_values[0];
+
+    for(int i=0;i<k;i++){
+        if(dis_map_values[i]>final_distance && dis_map_keys[i]!='#'){
+            final_label = dis_map_keys[i];
+            final_distance = dis_map_values[i];
+        }
+    }
+
+    target_datapoint->label = final_label;
+}
+
 
 // vector<DataPoint> predictLables(vector<DataPoint> data_test, vector<DataPoint> data_train, int k, int func){
  
