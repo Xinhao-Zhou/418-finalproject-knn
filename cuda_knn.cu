@@ -7,7 +7,6 @@
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/host_vector.h>
 #include "cuda_knn.h"
-#include "cuda_kmeans.h"
 
 #define MAXATTRSIZE 8
 #define TRAIN_SIZE 16
@@ -198,7 +197,7 @@ int *cuPredict(double *trainAttr, int* trainLabels, int trainSize,
 
 /* test ver of parallel computation of different clusters */
 
-__global__ void kernelComputeDistance(double *trainAttr, double *testAttr, 
+__global__ void kernelComputeDistanceII(double *trainAttr, double *testAttr, 
 	double* device_distances, int trainSize, int testSize, int attrSize){
 
 	// __shared__ double trainData[MAXATTRSIZE * TRAIN_SIZE];//Number of attributes X Number of Train instances in this batch
@@ -245,12 +244,12 @@ __global__ void kernelComputeDistanceII(double *trainAttr, double *testAttr,
 	testSize = testClusterSize[blockIdx.x];
 
 	//Offset within a cluster, used to detect overflow
-	int testOffsetInCluster = blockIdx.y * blockDim.y + threadIdx.y;
-	int trainOffsetInCluster = blockIdx.z * blockDim.z + threadIdx.z;
+	int testOffsetInCluster = blockIdx.y * blockDim.y + threadIdx.x;
+	int trainOffsetInCluster = blockIdx.z * blockDim.z + threadIdx.y;
 
 	//Overall offset within trainAttr and testAttr
-	int trainOffset = trainOffsetInCluster + blockIdx.x * maxTrainClusterSize;
-	int testOffset = testOffsetInCluster + blockIdx.x * maxTestClusterSize;
+	int trainOffset = (trainOffsetInCluster + blockIdx.x * maxTrainClusterSize) * attrSize;
+	int testOffset = (testOffsetInCluster + blockIdx.x * maxTestClusterSize) * attrSize;
 
 	if(trainOffsetInCluster < trainSize && testOffsetInCluster < testSize){
 		//compute distance
@@ -259,19 +258,22 @@ __global__ void kernelComputeDistanceII(double *trainAttr, double *testAttr,
 			distance += pow(trainAttr[trainOffset + i] - testAttr[testOffset + i], 2);
 		}
 		distance = sqrt(distance);
-		device_distances[maxClusterSize * threadIdx.x + threadIdx.y * maxTrainClusterSize + threadIdx.z];
+		device_distances[maxClusterSize * blockIdx.x + 
+		(blockIdx.y * blockDim.y + threadIdx.x) * maxTrainClusterSize + 
+		blockIdx.z * blockDim.z + threadIdx.y]
+			= distance;
 	}
 }
 
 __global__ void initializeIndexII(int *device_index, int maxTrainClusterSize, int maxTestClusterSize,
-	int *trainSize, int *testSize){
+	int *clusterTrainSize, int *clusterTestSize){
 	int trainSize = 0;
 	int testSize = 0;
 
 	int maxClusterSize = maxTrainClusterSize * maxTestClusterSize;
 
-	trainSize = trainClusterSize[blockIdx.x];
-	testSize = testClusterSize[blockIdx.x];
+	trainSize = clusterTrainSize[blockIdx.x];
+	testSize = clusterTestSize[blockIdx.x];
 
 	//Offset within a cluster, used to detect overflow
 	int trainOffsetInCluster = blockIdx.z * blockDim.z + threadIdx.z;
@@ -282,7 +284,7 @@ __global__ void initializeIndexII(int *device_index, int maxTrainClusterSize, in
 	int testOffset = testOffsetInCluster + blockIdx.x * maxTestClusterSize;
 
 	if(trainOffsetInCluster < trainSize && testOffsetInCluster < testSize){
-		device_index[maxClusterSize * threadIdx.x + trainOffsetInCluster * maxTestClusterSize + testOffsetInCluster] = 
+		device_index[maxClusterSize * blockIdx.x + testOffsetInCluster * maxTrainClusterSize + trainOffsetInCluster] = 
 		trainOffsetInCluster;
 	}
 }
@@ -315,7 +317,7 @@ __global__ void assignLabelII(double *device_distances, int *device_index,
 
 			int containFlag = -1;
 			for(int j = 0;j < labelSize;j++){
-				if(sharedLabel[sharedOffset + j] == newlabel){
+				if(sharedLabel[sharedOffset + j] == newLabel){
 					containFlag = j;
 					break;
 				}
@@ -361,7 +363,7 @@ int *cuPredictBasedOnKmeans(cudaKmeans ckmeans, int trainSize, int testSize, int
 	int maxTrainClusterSize = 0;
 	int maxTestClusterSize = 0;
 
-	for(int i = 0;i < k;i++){
+	for(int i = 0;i < clusterNumber;i++){
 		if(ckmeans.clusters[i].size > maxTrainClusterSize){
 			maxTrainClusterSize = ckmeans.clusters[i].size;
 		}
@@ -371,21 +373,22 @@ int *cuPredictBasedOnKmeans(cudaKmeans ckmeans, int trainSize, int testSize, int
 		}
 	}
 
+
 	cudaMalloc((void**)&device_index, sizeof(int) * clusterNumber * maxTrainClusterSize * maxTestClusterSize);
 	cudaMalloc((void**)&device_distance, sizeof(double) * clusterNumber * maxTrainClusterSize * maxTestClusterSize);
 	cudaMalloc((void**)&device_trainAttributes, sizeof(double) * attributesCount * maxTrainClusterSize * clusterNumber);
 	cudaMalloc((void**)&device_testAttributes, sizeof(double) * attributesCount * maxTestClusterSize * clusterNumber);
-	cudaMalloc((void**)&device_trainAttributesOffset, sizeof(int) * clusterNumber);
-	cudaMalloc((void**)&device_testAttributesOffset, sizeof(int) * clusterNumber);
+	cudaMalloc((void**)&device_trainSize, sizeof(int) * clusterNumber);
+	cudaMalloc((void**)&device_testSize, sizeof(int) * clusterNumber);
 	cudaMalloc((void**)&device_trainLabel, sizeof(int) * clusterNumber * maxTrainClusterSize);
 	cudaMalloc((void**)&device_predictLabel, sizeof(int) * clusterNumber * maxTestClusterSize);
 
+
 	//Get clusters offset
 	for(int i = 0; i < clusterNumber;i++){
-		cudaMemset(device_trainSize + i, ckmeans.clusters[i].size, sizeof(int), cudaMemcpyHostToDevice);
-		cudaMemset(device_testSize + i,  ckmeans.clusters[i].testSize, sizeof(int), cudaMemcpyHostToDevice);
+		cudaMemcpy(device_trainSize + i, &(ckmeans.clusters[i].size), sizeof(int),cudaMemcpyHostToDevice);
+		cudaMemcpy(device_testSize + i,  &(ckmeans.clusters[i].testSize), sizeof(int), cudaMemcpyHostToDevice);
 	}
-
 	//Copy data from host to device
 	for(int i = 0; i < clusterNumber;i++){
 		cudaMemcpy(device_trainAttributes + i * maxTrainClusterSize * attributesCount, 
@@ -413,12 +416,12 @@ int *cuPredictBasedOnKmeans(cudaKmeans ckmeans, int trainSize, int testSize, int
 		device_distance, attributesCount, clusterNumber, device_trainSize, device_testSize,
 		maxTrainClusterSize, maxTestClusterSize);
 
+
 	initializeIndexII<<<gridDim, blockDim>>>(device_index, maxTrainClusterSize, maxTestClusterSize,
 		device_trainSize, device_testSize);
-
 	cudaDeviceSynchronize();
-
-
+cudaError_t err = cudaPeekAtLastError();
+printf("%s\n",cudaGetErrorName(err));
 
 
 /* Sort distances and index */
@@ -430,7 +433,8 @@ int *cuPredictBasedOnKmeans(cudaKmeans ckmeans, int trainSize, int testSize, int
 	
     int maxClusterSize = maxTrainClusterSize * maxTestClusterSize;
 
-	for(int i = 0;i < clusterNUmber;i++){
+
+	for(int i = 0;i < clusterNumber;i++){
 		int tmpTrainSize = ckmeans.clusters[i].size;
 		for(int j = 0;j < ckmeans.clusters[i].testSize; j++){
 
@@ -461,7 +465,7 @@ int *cuPredictBasedOnKmeans(cudaKmeans ckmeans, int trainSize, int testSize, int
 	for(int i = 0;i < clusterNumber;i++){
 		int offset = i * maxTestClusterSize;
 		cudaMemcpy(retLabel + aggrSize, device_predictLabel + offset, 
-			sizeof(int) * ckmeans.clusters[i].testSize, cudaMemcpyDevcieToHost);
+			sizeof(int) * ckmeans.clusters[i].testSize, cudaMemcpyDeviceToHost);
 		aggrSize += ckmeans.clusters[i].testSize;
 	}
 
@@ -470,8 +474,8 @@ int *cuPredictBasedOnKmeans(cudaKmeans ckmeans, int trainSize, int testSize, int
 	cudaFree(device_distance);
 	cudaFree(device_trainAttributes);
 	cudaFree(device_testAttributes);
-	cudaFree(device_trainAttributesOffset);
-	cudaFree(device_testAttributesOffset);
+	cudaFree(device_trainSize);
+	cudaFree(device_testSize);
 	cudaFree(device_trainLabel);
 	cudaFree(device_predictLabel);
 	
