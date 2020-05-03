@@ -150,7 +150,8 @@ double basicKnnEnd = currentSeconds();
     if(mode==0){
         printf("%s\n", "baseline sequential");
         double tmpStart = currentSeconds();
-        vector<DataPoint> results = predictLables_seq(data_test, data_train, 16, func);
+        //vector<DataPoint> results = predictLables_seq(data_test, data_train, 16, func);
+        vector<DataPoint> results = predictLablesPQ(data_test, data_train, 16, 0);
         double tmpEnd = currentSeconds();
         int correctPrediction = 0;
 
@@ -511,6 +512,88 @@ void assignLabel_seq(DataPoint *target_datapoint, Distance *distances, int k){
 }
 
 
+
+vector<Distance> findNeighborsPQ(DataPoint target_point, priority_queue<Distance> distances, int k){
+    vector<Distance> nearest_neighbors;
+
+    for(int i=0;i<k;i++){
+        Distance top_ds = distances.top();
+        nearest_neighbors.push_back(top_ds);
+        distances.pop();
+    }
+
+    return nearest_neighbors;
+
+}
+
+
+DataPoint assignLabelPQ(DataPoint target_datapoint, vector<Distance> distances){
+    map<char,double> dis_map;
+    for(Distance ds:distances){
+        char ds_char = ds.dest_datapoint.label;
+        //double temp = (double)1/(ds.distance+1);
+        //printf("temp : %f", temp);
+        double ds_ds = (double)ds.distance;
+        //printf("char : %c, distance: %f\n", ds_char, ds_ds);
+        map<char,double>::iterator iter_char = dis_map.find(ds_char);
+        if(iter_char!=dis_map.end()){
+            ds_ds += dis_map.at(ds_char);
+            dis_map[ds_char] = ds_ds;
+        }else{
+            dis_map[ds_char] = ds_ds;
+        }
+    }
+
+    map<char,double>::iterator iter = dis_map.begin();
+    double temp_weight = (numeric_limits<double>::max)();
+    while(iter != dis_map.end()) {
+        //cout << iter->first << " : " << iter->second << endl;
+        if(iter->second<temp_weight){
+            temp_weight = iter->second;
+            target_datapoint.label = iter->first;
+        }
+        iter++;
+    }
+
+
+    return target_datapoint;
+}
+
+
+vector<DataPoint> predictLablesPQ(vector<DataPoint> data_test, vector<DataPoint> data_train, int k, int func){
+    vector<DataPoint> results;
+    for(DataPoint test_dp : data_test){
+        priority_queue<Distance> pq = getPriorityQueue(test_dp, data_train, func);
+
+        vector<Distance> test;
+        while(!pq.empty()){
+            Distance ds = pq.top();
+            //printf("priorityqueue src id :%d dst id: %d id dst label :%c distance :%d\n",ds.src_datapoint.id, ds.dest_datapoint.id, ds.dest_datapoint.label, ds.distance);
+            pq.pop();
+            test.push_back(ds);
+        }
+
+        for(Distance ds: test){
+            pq.push(ds);
+        }
+
+        //printf("\nnearest neighbors\n");
+        vector<Distance> nearestneighbors = findNeighborsPQ(test_dp, pq, k);
+
+        for(Distance ds: nearestneighbors){
+            //printf("src id :%d dst id: %d id dst label :%c distance :%d\n", ds.src_datapoint.id, ds.dest_datapoint.id, ds.dest_datapoint.label, ds.distance);
+        }
+
+        //printf("\niterate map\n");
+        test_dp = assignLabelPQ(test_dp, nearestneighbors);
+
+        //printf("\nassign label\n");
+        //printf("test data point label: %c\n",test_dp.label);
+        results.push_back(test_dp);
+    }
+
+    return results;
+}
 // vector<DataPoint> predictLables(vector<DataPoint> data_test, vector<DataPoint> data_train, int k, int func){
  
 //     vector<DataPoint> results;
