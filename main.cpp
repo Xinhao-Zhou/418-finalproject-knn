@@ -58,62 +58,86 @@ int main(int argc, char *argv[])
     int *labelTest = getLabelArray(data_test);
 
     double seqStart = currentSeconds();
-    clustersInit(data_train, 16);
+    clustersInit(data_train, 8);
     double seqEnd = currentSeconds();
     printf("sequential kmeans time: %lf\n",seqEnd - seqStart);
 
 
     double tmpStart = currentSeconds();
-    cudaKmeans ckmeans = getClusters(dataTrain, data_train.size(), labelTrain, data_train[0].attributes.size(), 16);
+    cudaKmeans ckmeans = getClusters(dataTrain, data_train.size(), labelTrain, data_train[0].attributes.size(), 8);
     double tmpEnd = currentSeconds();
 
-    ckmeans = getClusterId(ckmeans, dataTest, data_test.size(),16, labelTest);    
+    ckmeans = getClusterId(ckmeans, dataTest, data_test.size(),8, labelTest);    
 
 
     printf("kmeans time: %lf\n", tmpEnd - tmpStart);
     parKnnTime += tmpEnd - tmpStart;
+
+
+
+
+    double parKnnStart = currentSeconds();
+
     int correctPrediction = 0;
 
+    int *predictLabel = cuPredictBasedOnKmeans(ckmeans, data_train.size(), 
+        data_test.size(), data_train[0].attributes.size(), 16, 8);
 
-    for(int i = 0;i < 16;i++){
+    double parKnnEnd = currentSeconds();
 
-        printf("size: %d : %d\n", ckmeans.clusters[i].size, ckmeans.clusters[i].testSize);
-        if(ckmeans.clusters[i].testSize == 0)continue;
+    int aggrSize = 0;
+    for(int i = 0;i < 8;i++){
+        for(int j = 0; j < ckmeans.clusters[i].testSize;j++){
+            if(predictLabel[aggrSize + j] == ckmeans.clusters[i].testLabel[j]){
+                correctPrediction++;
+            }
+        }
+        aggrSize += ckmeans.clusters[i].testSize;
+    }
+
+ //    for(int i = 0;i < 16;i++){
+
+ //        printf("size: %d : %d\n", ckmeans.clusters[i].size, ckmeans.clusters[i].testSize);
+ //        if(ckmeans.clusters[i].testSize == 0)continue;
 	
-	double tmpStart = currentSeconds();
+	// double tmpStart = currentSeconds();
 
-	int *predictLabels = cuPredict(ckmeans.clusters[i].attributes, ckmeans.clusters[i].trainLabel,ckmeans.clusters[i].size,
-		ckmeans.clusters[i].testAttr,ckmeans.clusters[i].testSize,data_train[0].attributes.size(), 16);
+	// int *predictLabels = cuPredict(ckmeans.clusters[i].attributes, ckmeans.clusters[i].trainLabel,ckmeans.clusters[i].size,
+	// 	ckmeans.clusters[i].testAttr,ckmeans.clusters[i].testSize,data_train[0].attributes.size(), 16);
  
 
-	double tmpEnd = currentSeconds();
-        parKnnTime += tmpEnd - tmpStart;
-        printf("knn time : %lf\n", tmpEnd - tmpStart);
-	for(int j = 0;j < ckmeans.clusters[i].testSize;j++){
-		if(predictLabels[j] == ckmeans.clusters[i].testLabel[j])correctPrediction++;
-	}  
-	delete [] predictLabels;
-    }
+	// double tmpEnd = currentSeconds();
+ //        parKnnTime += tmpEnd - tmpStart;
+ //        printf("knn time : %lf\n", tmpEnd - tmpStart);
+	// for(int j = 0;j < ckmeans.clusters[i].testSize;j++){
+	// 	if(predictLabels[j] == ckmeans.clusters[i].testLabel[j])correctPrediction++;
+	// }  
+	// delete [] predictLabels;
+ //    }
+
+
+
+
     double acc = (double)correctPrediction / (double)data_test.size();
 
-    printf("parallel kmeans + knn time: %lf\n", parKnnTime);
+    printf("parallel kmeans + knn time: %lf\n", parKnnEnd - parKnnStart);
     printf("parallel correct: %d accuracy : %lf\n", correctPrediction, acc);
 
 
 
 
-    double seqKnnStart = currentSeconds();
+ //    double seqKnnStart = currentSeconds();
 
-    int *predictLabels = cuPredict(dataTrain, labelTrain, data_train.size(), dataTest, data_test.size(), data_train[0].attributes.size(), 16);
+ //    int *predictLabels = cuPredict(dataTrain, labelTrain, data_train.size(), dataTest, data_test.size(), data_train[0].attributes.size(), 16);
     
-    double seqKnnEnd = currentSeconds();
-    correctPrediction = 0;
-    for(int i = 0;i < data_test.size();i++){
-	if(predictLabels[i] == labelTest[i])correctPrediction++;
-    }
-    acc = (double)correctPrediction / (double)data_test.size();
-    printf("sequential knn time: %lf\n", seqKnnEnd - seqKnnStart);
-    printf("sequential correct: %d accuracy: %lf\n", correctPrediction, acc);
+ //    double seqKnnEnd = currentSeconds();
+ //    correctPrediction = 0;
+ //    for(int i = 0;i < data_test.size();i++){
+	// if(predictLabels[i] == labelTest[i])correctPrediction++;
+ //    }
+ //    acc = (double)correctPrediction / (double)data_test.size();
+ //    printf("sequential knn time: %lf\n", seqKnnEnd - seqKnnStart);
+ //    printf("sequential correct: %d accuracy: %lf\n", correctPrediction, acc);
 
 
 

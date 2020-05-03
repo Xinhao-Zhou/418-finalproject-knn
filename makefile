@@ -26,8 +26,8 @@ cycletimer.o:
 cudaKmeans.o:
 	$(NVCC) $(NVCC_FLAGS) -c cuda_kmeans.cu -o cudaKmeans.o
 
-cudaKnn.o:
-	$(NVCC) $(NVCC_FLAGS) -c cuda_knn.cu -o cudaKnn.o
+cudaKnn.o:cudaKmeans.o
+	$(NVCC) $(NVCC_FLAGS) -c cuda_knn.cu -o cudaKnn.o cudaKmeans.o
 
 predict.o:
 	$(NVCC) $(NVCC_FLAGS) -c predict.cu -o predict.o
