@@ -451,11 +451,29 @@ int *cuPredictBasedOnKmeans(cudaKmeans ckmeans, int trainSize, int testSize, int
 	int blockY = (maxTestClusterSize + BLOCK_DIM - 1) / BLOCK_DIM; 
 	dim3 assignGrid(clusterNumber, blockY);
 
-	assignLabelII(double *device_distances, int *device_index, 
-	int *device_label, int *labels, int k, int *testSize ,int *trainSize,
-	int maxTrainClusterSize, int maxTestClusterSize)
-
 	assignLabelII<<<assignGrid, BLOCK_DIM>>>(device_distance, device_index, 
 		device_trainLabel, device_predictLabel, 
-		k, testSize ,int trainSize)
+		k, device_testSize, device_trainSize, maxTrainClusterSize,
+		maxTestClusterSize);
+
+	int *retLabel = new int[testSize];
+	int aggrSize = 0;
+	for(int i = 0;i < clusterNumber;i++){
+		int offset = i * maxTestClusterSize;
+		cudaMemcpy(retLabel + aggrSize, device_predictLabel + offset, 
+			sizeof(int) * ckmeans.clusters[i].testSize, cudaMemcpyDevcieToHost);
+		aggrSize += ckmeans.clusters[i].testSize;
+	}
+
+
+	cudaFree(device_index);
+	cudaFree(device_distance);
+	cudaFree(device_trainAttributes);
+	cudaFree(device_testAttributes);
+	cudaFree(device_trainAttributesOffset);
+	cudaFree(device_testAttributesOffset);
+	cudaFree(device_trainLabel);
+	cudaFree(device_predictLabel);
+	
+	return retLabel;
 }
