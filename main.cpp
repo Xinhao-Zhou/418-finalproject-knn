@@ -1,6 +1,5 @@
 
 #include "knn_header.h"
-#include "knn_prep.cpp"
 #include "kmeans.h"
 #include "cuda_kmeans.h"
 #include "cuda_knn.h"

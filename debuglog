@@ -1,0 +1,24 @@
+        .c/.cc/.cpp/.cxx : preprocess, compile, link
+        .o               : link
+        .i/.ii           : compile, link
+                           merge with host C code, compile, link
+--device-link                                   (-dlink)                        
+        host linker.
+--link                                          (-link)                         
+        This option specifies the default behavior: compile and link all inputs.
+        This option compiles and links all inputs into an executable, and executes
+        compilation or linking. This step is intended for developers who do not want
+        allowed when this option is present in nvcc non-linking/archiving mode.
+        Specify libraries to be used in the linking stage without the library file
+Options for specifying behavior of compiler/linker.
+        Generate a shared library during linking.  Use option '--linker-options'
+        when other linker options are required for more control.
+--linker-options <options>,...                  (-Xlinker)                      
+        Specify options directly to the host linker.
+--nvlink-options <options>,...                  (-Xnvlink)                      
+        Specify options directly to nvlink.
+--no-device-link                                (-nodlink)                      
+        Skip the device link step when linking object files.
+        executable device code is generated.  Relocatable device code must be linked
+        In whole program compilation mode, preserve user defined external linkage
+        This option implies '--nvlink-options --verbose' when '--relocatable-device-code=true'
