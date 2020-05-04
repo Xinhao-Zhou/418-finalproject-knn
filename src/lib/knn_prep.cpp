@@ -150,7 +150,11 @@ double *getAttributesArray(vector<DataPoint> vec){
     int attributesCount = vec[0].attributes.size();
 
     double *ret = new double[len * attributesCount];
+<<<<<<< HEAD:src/lib/knn_prep.cpp
     for(int i = 0;i < (int)vec.size();i++){
+=======
+    for(int i = 0;i < vec.size();i++){
+>>>>>>> master:knn_prep.cpp
         for(int j = 0;j < attributesCount;j++){
             ret[i * attributesCount + j] = vec[i].attributes[j];
         }
