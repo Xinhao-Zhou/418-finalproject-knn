@@ -20,12 +20,12 @@ int assignLabelPQ(DataPoint target_datapoint, vector<Distance> distances){
     vector<int> size;
     vector<int> label;
 
-    for(int i = 0;i < distances.size();i++){
+    for(int i = 0;i < (int)distances.size();i++){
         Distance tmp = distances[i];
         int tmpLabel = tmp.dest_datapoint.label;
         int containFlag = 0;
         int offset = 0;
-        for(;offset < label.size();offset++){
+        for(;offset < (int)label.size();offset++){
             if(label[offset] == tmpLabel){
                 containFlag = 1;
                 break;
@@ -42,7 +42,7 @@ int assignLabelPQ(DataPoint target_datapoint, vector<Distance> distances){
 
     int maxSize = 0;
     int maxIndex = 0;
-    for(int i = 0;i < label.size();i++){
+    for(int i = 0;i < (int)label.size();i++){
         if(size[i] > maxSize){
             maxSize = size[i];
             maxIndex = i;
@@ -62,7 +62,7 @@ vector<int> predictLablesPQ(vector<DataPoint> data_test, vector<DataPoint> data_
 #if OMP
 #pragma omp parallel for ordered schedule(dynamic, 256) num_threads(16)
 #endif
-    for(testId = 0;testId < data_test.size();testId++){
+    for(testId = 0;testId < (int)data_test.size();testId++){
 
         DataPoint test_dp = data_test[testId];
         priority_queue<Distance> pq = getPriorityQueue(test_dp, data_train, func);
@@ -76,7 +76,7 @@ vector<int> predictLablesPQ(vector<DataPoint> data_test, vector<DataPoint> data_
    }
 
 
-   for(int i = 0;i < data_test.size();i++){
+   for(int i = 0;i < (int)data_test.size();i++){
 	results.push_back(ret[i]);
    }
    delete [] ret;
@@ -117,7 +117,7 @@ int main(int argc, char *argv[]) {
     double tmpEnd = currentSeconds();
     int correctPrediction = 0;
 
-    for(int i = 0;i < data_test.size();i++){
+    for(int i = 0;i < (int)data_test.size();i++){
         if(results[i] == data_test[i].label)correctPrediction++;
     }
     double acc = (double)correctPrediction / (double)data_test.size();

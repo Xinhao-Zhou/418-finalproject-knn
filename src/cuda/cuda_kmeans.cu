@@ -65,10 +65,6 @@ double *MoveTrainSetToCuda(double *trainSet, int trainSize, int attributesCount)
 	return ret;
 }
 
-__device__ int getError(double **oldCentralPoints, double **newCentralPoints, int k, int attribtuesCount){
-
-}
-
 __device__ void kmeansIter(){
 
 }
@@ -120,13 +116,13 @@ __global__ void firstComputeDistance(double *centralPoint, int *pointClusterIdx,
 
 //
 __global__ void KmeansUpdateCentralPointsAttributes(int iteration, double *centralPoint, int *clusterSize, int *pointClusterIdx, double *device_trainSet, int k, int trainSize, int attributesCount){
-	__shared__ double sumArray[BLOCK_DIM * MAXATTRSIZE];
-	__shared__ double sumOutput[BLOCK_DIM];
-	__shared__ double sumScratch[BLOCK_DIM * 2];
+//	__shared__ double sumArray[BLOCK_DIM * MAXATTRSIZE];
+//	__shared__ double sumOutput[BLOCK_DIM];
+//	__shared__ double sumScratch[BLOCK_DIM * 2];
 
-	__shared__ uint inClusterFlag[BLOCK_DIM];
-	__shared__ uint inClusterOutput[BLOCK_DIM];
-	__shared__ uint inClusterScratch[BLOCK_DIM * 2];
+//	__shared__ uint inClusterFlag[BLOCK_DIM];
+//	__shared__ uint inClusterOutput[BLOCK_DIM];
+//	__shared__ uint inClusterScratch[BLOCK_DIM * 2];
 
 //	__shared__ double oldCentralPoint[MAXATTRSIZE * MAX_K];
 //	__shared__ double newCentralPoint[MAXATTRSIZE * MAX_K];
@@ -135,13 +131,9 @@ __global__ void KmeansUpdateCentralPointsAttributes(int iteration, double *centr
     int clusterIdx = -1;
     if(pointIdx < trainSize)clusterIdx = pointClusterIdx[pointIdx];
     //Set central points' attributes to 0. Store original central points.
-    if(threadIdx.x < MAXATTRSIZE * MAX_K){
-    	int tmpCId = threadIdx.x / MAXATTRSIZE;
-    	int attrID = threadIdx.x % MAXATTRSIZE;
 
     	//oldCentralPoint[tmpCId * MAXATTRSIZE + attrID] = kmeans->clusters[tmpCId].centralPoint[attrID];
 //    	centralPoint[attrID] = 0.f;//Set the original central point to 0
-   	}
 /*
    	//Set cluster size to 0.
    	if(threadIdx.x < k){
@@ -336,10 +328,6 @@ cudaKmeans getClusters(double *trainSet, int trainSize, int *labelTrain, int att
 	double *centralPoint;
 	double *oldCentralPoint;
 	int *clusterSize;
-
-
-        double testTime = 0.f;
-
 
 
 	cudaMalloc((void **)&pointClusterIdx, sizeof(int) * trainSize);

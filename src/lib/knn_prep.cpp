@@ -150,7 +150,7 @@ double *getAttributesArray(vector<DataPoint> vec){
     int attributesCount = vec[0].attributes.size();
 
     double *ret = new double[len * attributesCount];
-    for(int i = 0;i < vec.size();i++){
+    for(int i = 0;i < (int)vec.size();i++){
         for(int j = 0;j < attributesCount;j++){
             ret[i * attributesCount + j] = vec[i].attributes[j];
         }

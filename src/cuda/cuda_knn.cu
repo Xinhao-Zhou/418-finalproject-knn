@@ -25,9 +25,6 @@ __global__ void kernelComputeDistance(double *trainAttr, double *testAttr,
 	// __shared__ double trainData[MAXATTRSIZE * TRAIN_SIZE];//Number of attributes X Number of Train instances in this batch
 	// __shared__ double testData[MAXATTRSIZE * TEST_SIZE];//Number of attributes X Number of Test instances in this batch
 
-	int trainIdx = threadIdx.x;
-	int testIdx = threadIdx.y;
-
 	int trainOffset = blockDim.x * blockIdx.x;
 	int testOffset = blockDim.y * blockIdx.y;
 
@@ -67,7 +64,6 @@ __global__ void assignLabel(double *device_distances, int *device_index, int *de
 	//k * testSize total threads
 	__shared__ int sharedLabel[MAX_K * BLOCK_DIM];
 	__shared__ int sharedSize[MAX_K * BLOCK_DIM];
-	__shared__ double sharedDistance[MAX_K * BLOCK_DIM];
 
 	int labelSize = 0;
 	int testOffset = blockIdx.x * BLOCK_DIM + threadIdx.x;
@@ -77,7 +73,6 @@ __global__ void assignLabel(double *device_distances, int *device_index, int *de
 	for(int i = 0;i < k;i++){
 		int idx = device_index[testOffset * trainSize + i];
 		int newLabel = device_label[idx];
-		double distance = device_distances[idx];
 
 		//check contain
 		int containFlag = -1;
@@ -88,11 +83,9 @@ __global__ void assignLabel(double *device_distances, int *device_index, int *de
 			}
 		}
 		if(containFlag != -1){
-			sharedDistance[threadIdx.x * k + containFlag] += distance;
 			sharedSize[threadIdx.x * k + containFlag] += 1;
 		}else{
 			sharedLabel[threadIdx.x * k + labelSize] = newLabel;
-			sharedDistance[threadIdx.x * k + labelSize] = distance;
 			sharedSize[threadIdx.x * k + labelSize] = 1;
 			labelSize++;
 		}
@@ -100,7 +93,6 @@ __global__ void assignLabel(double *device_distances, int *device_index, int *de
 
         
 
-	double minDistance = INFINITY;
         int maxSize = 0;
 	int minlabel = -1;
 	for(int i = 0;i < labelSize;i++){
@@ -203,9 +195,6 @@ __global__ void kernelComputeDistanceII(double *trainAttr, double *testAttr,
 	// __shared__ double trainData[MAXATTRSIZE * TRAIN_SIZE];//Number of attributes X Number of Train instances in this batch
 	// __shared__ double testData[MAXATTRSIZE * TEST_SIZE];//Number of attributes X Number of Test instances in this batch
 
-	int trainIdx = threadIdx.x;
-	int testIdx = threadIdx.y;
-
 	int trainOffset = blockDim.x * blockIdx.x;
 	int testOffset = blockDim.y * blockIdx.y;
 
@@ -280,8 +269,6 @@ __global__ void initializeIndexII(int *device_index, int maxTrainClusterSize, in
 	int testOffsetInCluster = blockIdx.y * blockDim.y + threadIdx.y;
 
 	//Overall offset within trainAttr and testAttr
-	int trainOffset = trainOffsetInCluster + blockIdx.x * maxTrainClusterSize;
-	int testOffset = testOffsetInCluster + blockIdx.x * maxTestClusterSize;
 
 	if(trainOffsetInCluster < trainSize && testOffsetInCluster < testSize){
 		device_index[maxClusterSize * blockIdx.x + testOffsetInCluster * maxTrainClusterSize + trainOffsetInCluster] = 

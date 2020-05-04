@@ -60,10 +60,6 @@ int main(int argc, char *argv[])
 //        //printf("id: %d \n", dp.id);
 //    }
 
-    int func = parseFunc(argv);
-
-    
-
     double parKnnTime = 0.f;
 
     double *dataTrain = getAttributesArray(data_train);
@@ -156,7 +152,7 @@ double basicKnnEnd = currentSeconds();
         double tmpEnd = currentSeconds();
         int correctPrediction = 0;
 
-        for(int i = 0;i < data_test.size();i++){
+        for(int i = 0;i < (int)data_test.size();i++){
             if(results[i] == labelTest[i])correctPrediction++;
         }
         double acc = (double)correctPrediction / (double)data_test.size();
@@ -341,7 +337,7 @@ DataPoint *sort_datapoint(DataPoint target_datapoint, vector<DataPoint> data_tra
 	int len = data_train.size();
 
     DataPoint *ret = new DataPoint[len];
-    for(int i = 0;i < data_train.size();i++){
+    for(int i = 0;i < (int)data_train.size();i++){
         ret[i] = data_train.at(i);
     }
 
@@ -532,12 +528,12 @@ int assignLabelPQ(DataPoint target_datapoint, vector<Distance> distances){
     vector<int> size;
     vector<int> label;
 
-    for(int i = 0;i < distances.size();i++){
+    for(int i = 0;i < (int)distances.size();i++){
 	Distance tmp = distances[i];
 	int tmpLabel = tmp.dest_datapoint.label;
         int containFlag = 0;
         int offset = 0;
-	for(;offset < label.size();offset++){
+	for(;offset < (int)label.size();offset++){
 	    if(label[offset] == tmpLabel){
 		containFlag = 1;
 		break;
@@ -554,7 +550,7 @@ int assignLabelPQ(DataPoint target_datapoint, vector<Distance> distances){
 
     int maxSize = 0;
     int maxIndex = 0;
-    for(int i = 0;i < label.size();i++){
+    for(int i = 0;i < (int)label.size();i++){
 	if(size[i] > maxSize){
 	    maxSize = size[i];
 	    maxIndex = i;
