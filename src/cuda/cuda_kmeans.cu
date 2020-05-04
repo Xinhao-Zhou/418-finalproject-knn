@@ -114,15 +114,14 @@ __global__ void firstComputeDistance(double *centralPoint, int *pointClusterIdx,
 }
 
 
-//
 __global__ void KmeansUpdateCentralPointsAttributes(int iteration, double *centralPoint, int *clusterSize, int *pointClusterIdx, double *device_trainSet, int k, int trainSize, int attributesCount){
-//	__shared__ double sumArray[BLOCK_DIM * MAXATTRSIZE];
-//	__shared__ double sumOutput[BLOCK_DIM];
-//	__shared__ double sumScratch[BLOCK_DIM * 2];
+	__shared__ double sumArray[BLOCK_DIM * MAXATTRSIZE];
+	__shared__ double sumOutput[BLOCK_DIM];
+	__shared__ double sumScratch[BLOCK_DIM * 2];
 
-//	__shared__ uint inClusterFlag[BLOCK_DIM];
-//	__shared__ uint inClusterOutput[BLOCK_DIM];
-//	__shared__ uint inClusterScratch[BLOCK_DIM * 2];
+	__shared__ uint inClusterFlag[BLOCK_DIM];
+	__shared__ uint inClusterOutput[BLOCK_DIM];
+	__shared__ uint inClusterScratch[BLOCK_DIM * 2];
 
 //	__shared__ double oldCentralPoint[MAXATTRSIZE * MAX_K];
 //	__shared__ double newCentralPoint[MAXATTRSIZE * MAX_K];
@@ -131,84 +130,177 @@ __global__ void KmeansUpdateCentralPointsAttributes(int iteration, double *centr
     int clusterIdx = -1;
     if(pointIdx < trainSize)clusterIdx = pointClusterIdx[pointIdx];
     //Set central points' attributes to 0. Store original central points.
+    if(threadIdx.x < MAXATTRSIZE * MAX_K){
+    	int tmpCId = threadIdx.x / MAXATTRSIZE;
+    	int attrID = threadIdx.x % MAXATTRSIZE;
 
     	//oldCentralPoint[tmpCId * MAXATTRSIZE + attrID] = kmeans->clusters[tmpCId].centralPoint[attrID];
 //    	centralPoint[attrID] = 0.f;//Set the original central point to 0
+   	}
 /*
    	//Set cluster size to 0.
    	if(threadIdx.x < k){
    		clusterSize[threadIdx.x] = 0;
    	}
-
    	__syncthreads();
 */
-   	if(clusterIdx != -1){
-   		atomicAdd(&(clusterSize[clusterIdx]),1);
-	   	for(int i = 0;i < attributesCount;i++){
-	   		atomicAdd(&centralPoint[clusterIdx * attributesCount + i], device_trainSet[pointIdx * attributesCount + i]);
-	   	}
-	}
-	// for(int i = 0;i < k;i++){
- //        inClusterOutput[2 * threadIdx.x] = 0;
- //        inClusterScratch[2 * threadIdx.x] = 0;
- //        inClusterScratch[2 * threadIdx.x + 1] = 0;
- //    	if(i == clusterIdx){
- //    		inClusterFlag[threadIdx.x] = 1;
- //    	}else{
- //    		inClusterFlag[threadIdx.x] = 0;
- //    	}
+    for(int i = 0;i < k;i++){
 
- //    	__syncthreads();
- //    	//Do prefix sum
- //    	sharedMemExclusiveScanInt(threadIdx.x, inClusterFlag, inClusterOutput, inClusterScratch, BLOCK_DIM);
+        inClusterOutput[2 * threadIdx.x] = 0;
+        inClusterScratch[2 * threadIdx.x] = 0;
+        inClusterScratch[2 * threadIdx.x + 1] = 0;
+    	if(i == clusterIdx){
+    		inClusterFlag[threadIdx.x] = 1;
+    	}else{
+    		inClusterFlag[threadIdx.x] = 0;
+    	}
 
-	// __syncthreads();
+    	__syncthreads();
+    	//Do prefix sum
+    	sharedMemExclusiveScanInt(threadIdx.x, inClusterFlag, inClusterOutput, inClusterScratch, BLOCK_DIM);
 
- //    	if(threadIdx.x == BLOCK_DIM - 1){
- //    		//Add cluster size
- //    		inClusterOutput[threadIdx.x] += inClusterFlag[threadIdx.x];
- //    		atomicAdd(&(clusterSize[i]), inClusterOutput[threadIdx.x]);//Remember to set this to 0!
+    	if(threadIdx.x == BLOCK_DIM - 1){
+    		//Add cluster size
+    		inClusterOutput[threadIdx.x] += inClusterFlag[threadIdx.x];
+    		atomicAdd(&(clusterSize[i]), inClusterOutput[threadIdx.x]);//Remember to set this to 0!
 
- //    	}
- //    }
-	// for(int i = 0;i < k; i++){
- //         sumOutput[threadIdx.x] = 0;
- //         sumScratch[2 * threadIdx.x] = 0;    
- //         sumScratch[2 * threadIdx.x + 1] = 0;
-	// 	if(i == clusterIdx){
-	// 		for(int j = 0;j < attributesCount;j++){
-	// 			sumArray[BLOCK_DIM * j + threadIdx.x] = device_trainSet[(pointIdx) * attributesCount + j];		
-	// 		}
-	// 	}else{
-	// 		for(int j = 0;j < attributesCount;j++){
-	// 			sumArray[BLOCK_DIM * j + threadIdx.x] = 0.f;		
-	// 		}
-	// 	}
+    	}
+    }
+	for(int i = 0;i < k; i++){
+         sumOutput[threadIdx.x] = 0;
+         sumScratch[2 * threadIdx.x] = 0;    
+         sumScratch[2 * threadIdx.x + 1] = 0;
+		if(i == clusterIdx){
+			for(int j = 0;j < attributesCount;j++){
+				sumArray[BLOCK_DIM * j + threadIdx.x] = device_trainSet[(pointIdx) * attributesCount + j];		
+			}
+		}else{
+			for(int j = 0;j < attributesCount;j++){
+				sumArray[BLOCK_DIM * j + threadIdx.x] = 0.f;		
+			}
+		}
 
-	// 	__syncthreads();
-	// 	//Sum all attributes inside this block
-	// 	for(int j = 0;j < attributesCount;j++){
- //            double tmp;
-	// 		//Save the last one before the prefix sum.
-	// 		if(threadIdx.x == BLOCK_DIM - 1){
-	// 			tmp = sumArray[(j + 1) * BLOCK_DIM - 1];
-	// 		}
+		__syncthreads();
+		//Sum all attributes inside this block
+		for(int j = 0;j < attributesCount;j++){
+            double tmp;
+			//Save the last one before the prefix sum.
+			if(threadIdx.x == BLOCK_DIM - 1){
+				tmp = sumArray[(j + 1) * BLOCK_DIM - 1];
+			}
 
-	// 		sharedMemExclusiveScan(threadIdx.x, sumArray + j * BLOCK_DIM, sumOutput, sumScratch, BLOCK_DIM);
+			sharedMemExclusiveScan(threadIdx.x, sumArray + j * BLOCK_DIM, sumOutput, sumScratch, BLOCK_DIM);
     
-	// 		if(threadIdx.x == BLOCK_DIM - 1){
-	// 			//Add the last element
-	// 			sumOutput[threadIdx.x] += tmp;
-	// 			//Add to global variable
- //                                centralPoint[i * attributesCount + j] += sumOutput[threadIdx.x];
-	// 			//atomicAdd(&(centralPoint[i * attributesCount + j]), sumOutput[threadIdx.x]);
-	// 		}
-	// //		__syncthreads();
-	// 	}
-
-	// }
-
+			if(threadIdx.x == BLOCK_DIM - 1){
+				//Add the last element
+				sumOutput[threadIdx.x] += tmp;
+				//Add to global variable
+				atomicAdd(&(centralPoint[i * attributesCount + j]), sumOutput[threadIdx.x]);
+			}
+			__syncthreads();
+		}
+	}
 }
+
+
+
+//
+// __global__ void KmeansUpdateCentralPointsAttributes(int iteration, double *centralPoint, int *clusterSize, int *pointClusterIdx, double *device_trainSet, int k, int trainSize, int attributesCount){
+
+
+// //	__shared__ double sumArray[BLOCK_DIM * MAXATTRSIZE];
+// //	__shared__ double sumOutput[BLOCK_DIM];
+// //	__shared__ double sumScratch[BLOCK_DIM * 2];
+
+// //	__shared__ uint inClusterFlag[BLOCK_DIM];
+// //	__shared__ uint inClusterOutput[BLOCK_DIM];
+// //	__shared__ uint inClusterScratch[BLOCK_DIM * 2];
+
+// //	__shared__ double oldCentralPoint[MAXATTRSIZE * MAX_K];
+// //	__shared__ double newCentralPoint[MAXATTRSIZE * MAX_K];
+//     int pointIdx = blockIdx.x * blockDim.x + threadIdx.x;
+ 
+//     int clusterIdx = -1;
+//     if(pointIdx < trainSize)clusterIdx = pointClusterIdx[pointIdx];
+//     //Set central points' attributes to 0. Store original central points.
+
+//     	//oldCentralPoint[tmpCId * MAXATTRSIZE + attrID] = kmeans->clusters[tmpCId].centralPoint[attrID];
+// //    	centralPoint[attrID] = 0.f;//Set the original central point to 0
+// /*
+//    	//Set cluster size to 0.
+//    	if(threadIdx.x < k){
+//    		clusterSize[threadIdx.x] = 0;
+//    	}
+
+//    	__syncthreads();
+// */
+//    	if(clusterIdx != -1){
+//    		atomicAdd(&(clusterSize[clusterIdx]),1);
+// 	   	for(int i = 0;i < attributesCount;i++){
+// 	   		atomicAdd(&centralPoint[clusterIdx * attributesCount + i], device_trainSet[pointIdx * attributesCount + i]);
+// 	   	}
+// 	}
+// 	// for(int i = 0;i < k;i++){
+//  //        inClusterOutput[2 * threadIdx.x] = 0;
+//  //        inClusterScratch[2 * threadIdx.x] = 0;
+//  //        inClusterScratch[2 * threadIdx.x + 1] = 0;
+//  //    	if(i == clusterIdx){
+//  //    		inClusterFlag[threadIdx.x] = 1;
+//  //    	}else{
+//  //    		inClusterFlag[threadIdx.x] = 0;
+//  //    	}
+
+//  //    	__syncthreads();
+//  //    	//Do prefix sum
+//  //    	sharedMemExclusiveScanInt(threadIdx.x, inClusterFlag, inClusterOutput, inClusterScratch, BLOCK_DIM);
+
+// 	// __syncthreads();
+
+//  //    	if(threadIdx.x == BLOCK_DIM - 1){
+//  //    		//Add cluster size
+//  //    		inClusterOutput[threadIdx.x] += inClusterFlag[threadIdx.x];
+//  //    		atomicAdd(&(clusterSize[i]), inClusterOutput[threadIdx.x]);//Remember to set this to 0!
+
+//  //    	}
+//  //    }
+// 	// for(int i = 0;i < k; i++){
+//  //         sumOutput[threadIdx.x] = 0;
+//  //         sumScratch[2 * threadIdx.x] = 0;    
+//  //         sumScratch[2 * threadIdx.x + 1] = 0;
+// 	// 	if(i == clusterIdx){
+// 	// 		for(int j = 0;j < attributesCount;j++){
+// 	// 			sumArray[BLOCK_DIM * j + threadIdx.x] = device_trainSet[(pointIdx) * attributesCount + j];		
+// 	// 		}
+// 	// 	}else{
+// 	// 		for(int j = 0;j < attributesCount;j++){
+// 	// 			sumArray[BLOCK_DIM * j + threadIdx.x] = 0.f;		
+// 	// 		}
+// 	// 	}
+
+// 	// 	__syncthreads();
+// 	// 	//Sum all attributes inside this block
+// 	// 	for(int j = 0;j < attributesCount;j++){
+//  //            double tmp;
+// 	// 		//Save the last one before the prefix sum.
+// 	// 		if(threadIdx.x == BLOCK_DIM - 1){
+// 	// 			tmp = sumArray[(j + 1) * BLOCK_DIM - 1];
+// 	// 		}
+
+// 	// 		sharedMemExclusiveScan(threadIdx.x, sumArray + j * BLOCK_DIM, sumOutput, sumScratch, BLOCK_DIM);
+    
+// 	// 		if(threadIdx.x == BLOCK_DIM - 1){
+// 	// 			//Add the last element
+// 	// 			sumOutput[threadIdx.x] += tmp;
+// 	// 			//Add to global variable
+//  //                                centralPoint[i * attributesCount + j] += sumOutput[threadIdx.x];
+// 	// 			//atomicAdd(&(centralPoint[i * attributesCount + j]), sumOutput[threadIdx.x]);
+// 	// 		}
+// 	// //		__syncthreads();
+// 	// 	}
+
+// 	// }
+
+// }
 
 __global__ void KmeansGetNewCentralPoint(double *centralPoint, int *clusterSize, int k, int attributesCount){
 	__shared__ int sizes[MAX_K];
