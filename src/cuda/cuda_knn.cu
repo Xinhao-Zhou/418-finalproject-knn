@@ -22,9 +22,6 @@ ComputeDistance: Compute the distances between test instances and training insta
 __global__ void kernelComputeDistance(double *trainAttr, double *testAttr, 
 	double* device_distances, int trainSize, int testSize, int attrSize){
 
-	// __shared__ double trainData[MAXATTRSIZE * TRAIN_SIZE];//Number of attributes X Number of Train instances in this batch
-	// __shared__ double testData[MAXATTRSIZE * TEST_SIZE];//Number of attributes X Number of Test instances in this batch
-
 	int trainOffset = blockDim.x * blockIdx.x;
 	int testOffset = blockDim.y * blockIdx.y;
 
@@ -145,7 +142,6 @@ int *cuPredict(double *trainAttr, int* trainLabels, int trainSize,
         thrust::device_ptr<int> vals(device_index);
 	
 	for(int i = 0;i < testSize;i++){
-//                 printf("here!\n");
 		thrust::sort_by_key(keys + i * trainSize, keys + (i + 1) * trainSize, vals + i * trainSize);		
 	}
 
@@ -165,14 +161,6 @@ int *cuPredict(double *trainAttr, int* trainLabels, int trainSize,
 	cudaMemcpy(retLabels, device_testLabels, sizeof(int) * testSize, cudaMemcpyDeviceToHost);
 
 
-//         for(int i = 0;i < attrSize;i++){
-// //		printf("attr: %lf\n", testAttr[i]);
-
-// 	}
-// 	for(int i = 0;i < trainSize;i++){
-// 		printf("%lf\n",h_distances[i]);
-// 	}	
-
 	cudaFree(device_distances);
 	cudaFree(device_testLabels);
 	cudaFree(device_index);
@@ -181,19 +169,13 @@ int *cuPredict(double *trainAttr, int* trainLabels, int trainSize,
 	cudaFree(device_trainLabels);
 
 	return retLabels;
-	//Get distance
-	//Sort distance
-	//find nearest neighbor
-	//return labels
+
 }
 
 /* test ver of parallel computation of different clusters */
 
 __global__ void kernelComputeDistanceII(double *trainAttr, double *testAttr, 
 	double* device_distances, int trainSize, int testSize, int attrSize){
-
-	// __shared__ double trainData[MAXATTRSIZE * TRAIN_SIZE];//Number of attributes X Number of Train instances in this batch
-	// __shared__ double testData[MAXATTRSIZE * TEST_SIZE];//Number of attributes X Number of Test instances in this batch
 
 	int trainOffset = blockDim.x * blockIdx.x;
 	int testOffset = blockDim.y * blockIdx.y;
@@ -407,8 +389,6 @@ int *cuPredictBasedOnKmeans(cudaKmeans ckmeans, int trainSize, int testSize, int
 	initializeIndexII<<<gridDim, blockDim>>>(device_index, maxTrainClusterSize, maxTestClusterSize,
 		device_trainSize, device_testSize);
 	cudaDeviceSynchronize();
-cudaError_t err = cudaPeekAtLastError();
-printf("%s\n",cudaGetErrorName(err));
 
 
 /* Sort distances and index */
