@@ -447,6 +447,8 @@ cudaKmeans getClusters(double *trainSet, int trainSize, int *labelTrain, int att
 	cudaMemset(clusterSize, 0, sizeof(int) * k);
 	srand(k);
 
+        cudaMalloc((void **)&(device_trainSet), sizeof(double) * trainSize * attributesCount);
+        cudaMemcpy(device_trainSet, trainSet, sizeof(double) * trainSize * attributesCount, cudaMemcpyHostToDevice);
 
 	double *host_centralPoint = new double[k * attributesCount];
 	double *host_oldCentralPoint = new double[k * attributesCount];
@@ -477,7 +479,7 @@ cudaKmeans getClusters(double *trainSet, int trainSize, int *labelTrain, int att
 		cudaMemcpy(oldCentralPoint + i * attributesCount, trainSet+ idx * attributesCount,sizeof(double) * attributesCount, cudaMemcpyHostToDevice);
 	}
 	delete [] tmpRandList;
-	device_trainSet = MoveTrainSetToCuda(trainSet, trainSize, attributesCount);
+//	device_trainSet = MoveTrainSetToCuda(trainSet, trainSize, attributesCount);
 
 	int blockCount = (trainSize + BLOCK_DIM - 1) / BLOCK_DIM;
 
@@ -558,14 +560,14 @@ cudaKmeans getClusters(double *trainSet, int trainSize, int *labelTrain, int att
 	delete [] clusterIdx;
         delete [] host_pointClusterIdx;
 
-/*
-	cudaFree(device_trainSet);
+
 	cudaFree(pointClusterIdx);
 	cudaFree(centralPoint);
 	cudaFree(oldCentralPoint);
+	cudaFree(clusterSize);
 	cudaFree(device_trainSet);
 	cudaFree(device_quitFlag);
-*/
+
 	double endTime = currentSeconds();
 
 	printf("parallel kmeans time: %lf\n", endTime - startTime);
