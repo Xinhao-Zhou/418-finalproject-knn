@@ -37,11 +37,9 @@ int benchmark_mode(char *argv[]){
 
 int main(int argc, char *argv[])
 {
-    cout << "Hello world!" << endl;
-
     printf("train data\n");
 
-    if(argc < 4){
+    if(argc <= 4){
         printf("We need [train data set] [test data set] [distance function] [mode] {-kmeans k} {-knn k}\n");
         return -1;
     }
@@ -59,6 +57,8 @@ int main(int argc, char *argv[])
         }
     }
 
+
+    printf("kmeans_k : %d, knn_k: %d\n",Kmeans_K, Knn_K);
     vector<DataPoint> data_train = parseFile(argc, argv);
 
 
@@ -84,10 +84,11 @@ int main(int argc, char *argv[])
         cudaKmeans ckmeans = getClusters(dataTrain, data_train.size(), labelTrain, data_train[0].attributes.size(), Kmeans_K);
         double cudaEnd = currentSeconds();
 
+
         ckmeans = getClusterId(ckmeans, dataTest, data_test.size(), Kmeans_K, labelTest);    
 
 
-        printf("cuda kmeans time: %lf\n", tmpEnd - tmpStart);
+        printf("cuda kmeans time: %lf\n", cudaEnd - cudaStart);
 
         double parKnnStart = currentSeconds();
 
@@ -112,9 +113,8 @@ int main(int argc, char *argv[])
             
         double basicKnnStart = currentSeconds();
             predictLabel = cuPredict(dataTrain, labelTrain, data_train.size(), dataTest, data_test.size(), data_train[0].attributes.size(),
-        	16);
+        	Knn_K);
         double basicKnnEnd = currentSeconds();
-
 
 
 

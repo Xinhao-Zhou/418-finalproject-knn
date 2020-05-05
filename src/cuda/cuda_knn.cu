@@ -215,8 +215,8 @@ __global__ void kernelComputeDistanceII(double *trainAttr, double *testAttr,
 	testSize = testClusterSize[blockIdx.x];
 
 	//Offset within a cluster, used to detect overflow
-	int testOffsetInCluster = blockIdx.y * blockDim.y + threadIdx.x;
-	int trainOffsetInCluster = blockIdx.z * blockDim.z + threadIdx.y;
+	int testOffsetInCluster = blockIdx.y * TEST_SIZE + threadIdx.x;
+	int trainOffsetInCluster = blockIdx.z * TRAIN_SIZE + threadIdx.y;
 
 	//Overall offset within trainAttr and testAttr
 	int trainOffset = (trainOffsetInCluster + blockIdx.x * maxTrainClusterSize) * attrSize;
@@ -230,8 +230,8 @@ __global__ void kernelComputeDistanceII(double *trainAttr, double *testAttr,
 		}
 		distance = sqrt(distance);
 		device_distances[maxClusterSize * blockIdx.x + 
-		(blockIdx.y * blockDim.y + threadIdx.x) * maxTrainClusterSize + 
-		blockIdx.z * blockDim.z + threadIdx.y]
+		(blockIdx.y * TEST_SIZE + threadIdx.x) * maxTrainClusterSize + 
+		blockIdx.z * TRAIN_SIZE + threadIdx.y]
 			= distance;
 	}
 }
@@ -247,8 +247,8 @@ __global__ void initializeIndexII(int *device_index, int maxTrainClusterSize, in
 	testSize = clusterTestSize[blockIdx.x];
 
 	//Offset within a cluster, used to detect overflow
-	int trainOffsetInCluster = blockIdx.z * blockDim.z + threadIdx.z;
-	int testOffsetInCluster = blockIdx.y * blockDim.y + threadIdx.y;
+	int trainOffsetInCluster = blockIdx.z * TRAIN_SIZE + threadIdx.y;
+	int testOffsetInCluster = blockIdx.y * TEST_SIZE + threadIdx.x;
 
 	//Overall offset within trainAttr and testAttr
 
@@ -283,8 +283,8 @@ __global__ void assignLabelII(double *device_distances, int *device_index,
 			int tmpOffset = testOffset + i;
 			int idx = device_index[tmpOffset];
 			int newLabel = device_label[blockIdx.x * maxTrainClusterSize + idx];
-
 			int containFlag = -1;
+
 			for(int j = 0;j < labelSize;j++){
 				if(sharedLabel[sharedOffset + j] == newLabel){
 					containFlag = j;
@@ -301,6 +301,7 @@ __global__ void assignLabelII(double *device_distances, int *device_index,
 			}
 		}
 
+
 		int maxSize = 0;
 		int maxLabel = -1;
 
@@ -311,7 +312,6 @@ __global__ void assignLabelII(double *device_distances, int *device_index,
 				maxLabel = sharedLabel[tmpOffset];
 			}
 		}
-
 		labels[blockIdx.x * maxTestClusterSize + blockIdx.y * BLOCK_DIM + threadIdx.x] = maxLabel;
 	}
 	
