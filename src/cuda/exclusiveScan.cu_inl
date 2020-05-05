@@ -75,10 +75,10 @@ sharedMemExclusiveScan(int threadIndex, double *sInput, double* sOutput, volatil
 {
     if (size > WARP_SIZE) {
 
-        uint idata = sInput[threadIndex];
+        double idata = sInput[threadIndex];
 
         //Bottom-level inclusive warp scan
-        uint warpResult = warpScanInclusive(threadIndex, idata, sScratch, WARP_SIZE);
+        double warpResult = warpScanInclusive(threadIndex, idata, sScratch, WARP_SIZE);
 
         // Save top elements of each warp for exclusive warp scan sync
         // to wait for warp scans to complete (because s_Data is being
@@ -93,7 +93,7 @@ sharedMemExclusiveScan(int threadIndex, double *sInput, double* sOutput, volatil
 
         if ( threadIndex < (SCAN_BLOCK_DIM / WARP_SIZE)) {
             // grab top warp elements
-            uint val = sScratch[threadIndex];
+            double val = sScratch[threadIndex];
             // calculate exclusive scan and write back to shared memory
             sScratch[threadIndex] = warpScanExclusive(threadIndex, val, sScratch, size >> LOG2_WARP_SIZE);
         }
@@ -104,7 +104,7 @@ sharedMemExclusiveScan(int threadIndex, double *sInput, double* sOutput, volatil
         sOutput[threadIndex] = warpResult + sScratch[threadIndex >> LOG2_WARP_SIZE] - idata;
 
     } else if (threadIndex < WARP_SIZE) {
-        uint idata = sInput[threadIndex];
+        double idata = sInput[threadIndex];
         sOutput[threadIndex] = warpScanExclusive(threadIndex, idata, sScratch, size);
     }
 }
