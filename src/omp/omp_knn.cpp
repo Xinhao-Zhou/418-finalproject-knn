@@ -2,9 +2,14 @@
 #include "cycletimer.h"
 #include <omp.h>
 
+#define OMP 1
+
 vector<Distance> findNeighborsPQ(DataPoint target_point, priority_queue<Distance> distances, int k){
     vector<Distance> nearest_neighbors;
 
+#if OMP
+#pragma omp parallel for schedule(dynamic, 256) num_threads(16)
+#endif    	
     for(int i=0;i<k;i++){
         Distance top_ds = distances.top();
         nearest_neighbors.push_back(top_ds);
@@ -20,6 +25,10 @@ int assignLabelPQ(DataPoint target_datapoint, vector<Distance> distances){
     vector<int> size;
     vector<int> label;
 
+
+#if OMP
+#pragma omp parallel for schedule(dynamic, 256) num_threads(16)
+#endif   
     for(int i = 0;i < (int)distances.size();i++){
         Distance tmp = distances[i];
         int tmpLabel = tmp.dest_datapoint.label;
@@ -56,13 +65,13 @@ int assignLabelPQ(DataPoint target_datapoint, vector<Distance> distances){
 vector<int> predictLablesPQ(vector<DataPoint> data_test, vector<DataPoint> data_train, int k, int func){
     vector<int> results;
 
-    int testId = 0;
+//    int testId = 0;
 
     int *ret = new int[data_test.size()];
 #if OMP
-#pragma omp parallel for ordered schedule(dynamic, 256) num_threads(16)
+#pragma omp parallel for schedule(dynamic, 256) num_threads(16)
 #endif
-    for(testId = 0;testId < (int)data_test.size();testId++){
+    for(int testId = 0;testId < (int)data_test.size();testId++){
 
         DataPoint test_dp = data_test[testId];
         priority_queue<Distance> pq = getPriorityQueue(test_dp, data_train, func);
@@ -111,7 +120,7 @@ int main(int argc, char *argv[]) {
 
     int func = parseFunc(argv);
 
-    printf("%s\n", "baseline sequential");
+    printf("%s\n", "openmp implementation");
     double tmpStart = currentSeconds();
     vector<int> results = predictLablesPQ(data_test, data_train, 16, func);
     double tmpEnd = currentSeconds();
@@ -121,6 +130,6 @@ int main(int argc, char *argv[]) {
         if(results[i] == data_test[i].label)correctPrediction++;
     }
     double acc = (double)correctPrediction / (double)data_test.size();
-    printf("baseline sequential correct: %d accuracy: %lf\n", correctPrediction, acc);
-    printf("baseline sequential time: %lf\n",tmpEnd-tmpStart);
+    printf("omp correct: %d accuracy: %lf\n", correctPrediction, acc);
+    printf("omp time: %lf\n",tmpEnd-tmpStart);
 }
